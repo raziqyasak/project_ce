@@ -28,7 +28,6 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-# Using @st.cache_data to prevent reloading csv on every interaction
 @st.cache_data
 def load_data():
     # Make sure this file exists in your directory
@@ -126,7 +125,6 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    # Metrics
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Calories", f"{int(best_meal['Calories'].sum())} kcal")
     c2.metric("Total Cost", f"RM {best_meal['Cost'].sum():.2f}")
@@ -138,42 +136,33 @@ if run:
     st.divider()
 
     # ==========================================
-    # IMPROVED GRAPH 1: Convergence Area Chart
+    # GRAPH 1: Convergence Line Chart
     # ==========================================
     st.markdown("## 📈 PSO Convergence Curve")
-    st.caption("How the algorithm minimizes the cost over iterations.")
-
+    
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness (Cost)": convergence
     })
 
-    # Define a custom gradient area chart
-    chart1 = alt.Chart(convergence_df).mark_area(
-        line={'color':'#2ecc71'}, # Green Line
-        color=alt.Gradient(
-            gradient='linear',
-            stops=[alt.GradientStop(color='#2ecc71', offset=0),
-                   alt.GradientStop(color='white', offset=1)],
-            x1=1, x2=1, y1=1, y2=0
-        ),
-        interpolate='monotone', # Smooths the line
-        opacity=0.6
+    chart1 = alt.Chart(convergence_df).mark_line(
+        point=True,  # Shows dots at every data point
+        strokeWidth=3, # Thicker line
+        color='#29b5e8' # Nice bright blue color
     ).encode(
-        x=alt.X('Iteration', title='Iteration Count'),
-        y=alt.Y('Best Fitness (Cost)', title='Cost Function Value', scale=alt.Scale(zero=False)),
-        tooltip=['Iteration', 'Best Fitness (Cost)']
+        x=alt.X('Iteration', title='Iteration Number'),
+        y=alt.Y('Best Fitness (Cost)', title='Minimum Cost Found (RM)', scale=alt.Scale(zero=False)),
+        tooltip=['Iteration', alt.Tooltip('Best Fitness (Cost)', format='.2f')]
     ).properties(
         height=400
-    ).interactive() # Makes the chart zoomable/pannable
+    ).interactive()
 
     st.altair_chart(chart1, use_container_width=True)
 
     # ==========================================
-    # IMPROVED GRAPH 2: Improvement Area Chart
+    # GRAPH 2: Improvement Line Chart
     # ==========================================
     st.markdown("## 📉 Fitness Improvement per Iteration")
-    st.caption("The improvement (drop in cost) found at each step.")
 
     improvement = [0] + [
         convergence[i-1] - convergence[i]
@@ -185,20 +174,13 @@ if run:
         "Fitness Improvement": improvement
     })
 
-    # Define a custom area chart with points
-    chart2 = alt.Chart(improvement_df).mark_area(
-        line={'color':'#3498db'}, # Blue Line
-        color=alt.Gradient(
-            gradient='linear',
-            stops=[alt.GradientStop(color='#3498db', offset=0),
-                   alt.GradientStop(color='white', offset=1)],
-            x1=1, x2=1, y1=1, y2=0
-        ),
-        interpolate='step-after', # Step look is often better for incremental changes
-        opacity=0.5
+    chart2 = alt.Chart(improvement_df).mark_line(
+        point=True,
+        strokeWidth=2,
+        color='#ff7f0e' # Orange color for contrast
     ).encode(
-        x=alt.X('Iteration', title='Iteration Count'),
-        y=alt.Y('Fitness Improvement', title='Improvement Amount'),
+        x=alt.X('Iteration', title='Iteration Number'),
+        y=alt.Y('Fitness Improvement', title='Cost Reduction Amount'),
         tooltip=['Iteration', alt.Tooltip('Fitness Improvement', format='.4f')]
     ).properties(
         height=350
