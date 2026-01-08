@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-import matplotlib.pyplot as plt
+import altair as alt
 
 # =========================
 # Page Configuration
@@ -13,14 +13,14 @@ st.set_page_config(
 )
 
 # =========================
-# Header Section
+# Header
 # =========================
 st.markdown("""
 # 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
-This system generates a **low-cost daily meal plan** that satisfies
-**calorie requirements** using an evolutionary optimisation approach.
+This system selects a daily meal plan that satisfies calorie requirements
+while minimising total cost.
 """)
 
 st.divider()
@@ -122,43 +122,41 @@ if run:
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
-    st.divider()
-
     # =========================
     # STATIC GRAPH 1: Convergence Curve
     # =========================
-    st.markdown("## 📈 PSO Convergence Curve (Static)")
+    st.markdown("## 📈 PSO Convergence Curve")
 
-    fig1, ax1 = plt.subplots()
-    ax1.plot(range(1, len(convergence) + 1), convergence, marker='o')
-    ax1.set_xlabel("Iteration")
-    ax1.set_ylabel("Best Fitness (Cost)")
-    ax1.set_title("PSO Convergence Curve")
-    ax1.grid(True)
+    convergence_df = pd.DataFrame({
+        "Iteration": range(1, len(convergence) + 1),
+        "Best Fitness (Cost)": convergence
+    })
 
-    st.pyplot(fig1)
+    chart1 = alt.Chart(convergence_df).mark_line(point=True).encode(
+        x="Iteration",
+        y="Best Fitness (Cost)"
+    ).properties(height=350)
+
+    st.altair_chart(chart1, use_container_width=True)
 
     # =========================
     # STATIC GRAPH 2: Fitness Improvement
     # =========================
-    st.markdown("## 📉 Fitness Improvement per Iteration (Static)")
+    st.markdown("## 📉 Fitness Improvement per Iteration")
 
     improvement = [0] + [
         convergence[i-1] - convergence[i]
         for i in range(1, len(convergence))
     ]
 
-    fig2, ax2 = plt.subplots()
-    ax2.plot(range(1, len(improvement) + 1), improvement, color="green", marker='o')
-    ax2.set_xlabel("Iteration")
-    ax2.set_ylabel("Fitness Improvement")
-    ax2.set_title("Fitness Improvement Curve")
-    ax2.grid(True)
+    improvement_df = pd.DataFrame({
+        "Iteration": range(1, len(improvement) + 1),
+        "Fitness Improvement": improvement
+    })
 
-    st.pyplot(fig2)
+    chart2 = alt.Chart(improvement_df).mark_line(point=True).encode(
+        x="Iteration",
+        y="Fitness Improvement"
+    ).properties(height=350)
 
-    # =========================
-    # Dataset Preview
-    # =========================
-    with st.expander("📊 View Dataset Sample"):
-        st.dataframe(data.head(10))
+    st.altair_chart(chart2, use_container_width=True)
