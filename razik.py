@@ -30,11 +30,12 @@ st.divider()
 data = pd.read_csv("Food_and_Nutrition__.csv")
 data = data[['Calories', 'Protein']].copy()
 
+# Add dummy cost
 np.random.seed(42)
 data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
 # =========================
-# Sidebar (KEEP PARAMETERS – NOT CHANGED)
+# Sidebar Parameters (UNCHANGED)
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
 
@@ -64,16 +65,20 @@ def fitness_function(particle):
     return total_cost + penalty
 
 # =========================
-# Run Button (Centered)
+# Run Button
 # =========================
 st.markdown("### 🚀 Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
-# Main PSO Execution
+# PSO Execution
 # =========================
 if run:
-    particles = np.random.randint(0, len(data), (NUM_PARTICLES, MEALS_PER_DAY))
+    # Initialize swarm (FLOAT to avoid casting error)
+    particles = np.random.randint(
+        0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
+    ).astype(float)
+
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
 
     pbest = particles.copy()
@@ -82,6 +87,9 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
+    # =========================
+    # PSO Main Loop
+    # =========================
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
@@ -92,7 +100,8 @@ if run:
                 + C2 * r2 * (gbest - particles[i])
             )
 
-            particles[i] += velocities[i]
+            # SAFE position update
+            particles[i] = particles[i] + velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
             fitness = fitness_function(particles[i])
@@ -103,13 +112,12 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
+    # =========================
+    # Results
+    # =========================
     best_meal = data.iloc[gbest.astype(int)]
 
     st.divider()
-
-    # =========================
-    # Results Section
-    # =========================
     st.markdown("## ✅ Optimisation Results")
 
     c1, c2 = st.columns(2)
@@ -122,7 +130,7 @@ if run:
     st.divider()
 
     # =========================
-    # Analysis Section (Tabs)
+    # Graphs Section
     # =========================
     tab1, tab2 = st.tabs(["📈 Convergence Curve", "📉 Fitness Improvement"])
 
@@ -132,3 +140,20 @@ if run:
             "Best Fitness (Cost)": convergence
         })
         st.line_chart(convergence_df.set_index("Iteration"))
+
+    with tab2:
+        improvement = [0] + [
+            convergence[i-1] - convergence[i]
+            for i in range(1, len(convergence))
+        ]
+        improvement_df = pd.DataFrame({
+            "Iteration": range(1, len(improvement) + 1),
+            "Fitness Improvement": improvement
+        })
+        st.line_chart(improvement_df.set_index("Iteration"))
+
+    # =========================
+    # Dataset Preview
+    # =========================
+    with st.expander("📊 View Dataset Sample"):
+        st.dataframe(data.head(10))
