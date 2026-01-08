@@ -18,7 +18,7 @@ a daily meal plan that satisfies calorie requirements while minimizing total cos
 # =========================
 # Load Dataset
 # =========================
-data = pd.read_csv("data/Food_and_Nutrition__.csv")
+data = pd.read_csv("Food_and_Nutrition__.csv")
 
 # Use required columns only
 data = data[['Calories', 'Protein']].copy()
