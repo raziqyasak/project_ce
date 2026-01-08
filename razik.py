@@ -28,23 +28,14 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-@st.cache_data
-def load_data():
-    # Make sure this file exists in your directory
-    df = pd.read_csv("Food_and_Nutrition__.csv")
-    df = df[['Calories', 'Protein']].copy()
-    np.random.seed(42)
-    df['Cost'] = np.random.uniform(2, 10, size=len(df))
-    return df
+data = pd.read_csv("Food_and_Nutrition__.csv")
+data = data[['Calories', 'Protein']].copy()
 
-try:
-    data = load_data()
-except FileNotFoundError:
-    st.error("Error: 'Food_and_Nutrition__.csv' not found. Please ensure the file is in the project directory.")
-    st.stop()
+np.random.seed(42)
+data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
 # =========================
-# Sidebar Parameters
+# Sidebar Parameters (UNCHANGED)
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
 
@@ -77,47 +68,46 @@ def fitness_function(particle):
 # Run Button
 # =========================
 st.markdown("### 🚀 Run Optimisation")
-run = st.button("Start PSO Optimisation", type="primary")
+run = st.button("Start PSO Optimisation")
 
 # =========================
 # PSO Execution
 # =========================
 if run:
-    with st.spinner("Optimising your meal plan..."):
-        particles = np.random.randint(
-            0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
-        ).astype(float)
+    particles = np.random.randint(
+        0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
+    ).astype(float)
 
-        velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
+    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
 
-        pbest = particles.copy()
-        pbest_fitness = np.array([fitness_function(p) for p in particles])
+    pbest = particles.copy()
+    pbest_fitness = np.array([fitness_function(p) for p in particles])
+
+    gbest = pbest[np.argmin(pbest_fitness)]
+    convergence = []
+
+    for _ in range(MAX_ITER):
+        for i in range(NUM_PARTICLES):
+            r1, r2 = random.random(), random.random()
+
+            velocities[i] = (
+                W * velocities[i]
+                + C1 * r1 * (pbest[i] - particles[i])
+                + C2 * r2 * (gbest - particles[i])
+            )
+
+            particles[i] = particles[i] + velocities[i]
+            particles[i] = np.clip(particles[i], 0, len(data) - 1)
+
+            fitness = fitness_function(particles[i])
+            if fitness < pbest_fitness[i]:
+                pbest[i] = particles[i].copy()
+                pbest_fitness[i] = fitness
 
         gbest = pbest[np.argmin(pbest_fitness)]
-        convergence = []
+        convergence.append(min(pbest_fitness))
 
-        for _ in range(MAX_ITER):
-            for i in range(NUM_PARTICLES):
-                r1, r2 = random.random(), random.random()
-
-                velocities[i] = (
-                    W * velocities[i]
-                    + C1 * r1 * (pbest[i] - particles[i])
-                    + C2 * r2 * (gbest - particles[i])
-                )
-
-                particles[i] = particles[i] + velocities[i]
-                particles[i] = np.clip(particles[i], 0, len(data) - 1)
-
-                fitness = fitness_function(particles[i])
-                if fitness < pbest_fitness[i]:
-                    pbest[i] = particles[i].copy()
-                    pbest_fitness[i] = fitness
-
-            gbest = pbest[np.argmin(pbest_fitness)]
-            convergence.append(min(pbest_fitness))
-
-        best_meal = data.iloc[gbest.astype(int)]
+    best_meal = data.iloc[gbest.astype(int)]
 
     # =========================
     # Results
@@ -125,43 +115,46 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Calories", f"{int(best_meal['Calories'].sum())} kcal")
-    c2.metric("Total Cost", f"RM {best_meal['Cost'].sum():.2f}")
-    c3.metric("Protein", f"{int(best_meal['Protein'].sum())} g")
+    c1, c2 = st.columns(2)
+    c1.metric("Total Calories", int(best_meal['Calories'].sum()))
+    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
-    st.divider()
-
-    # ==========================================
-    # GRAPH 1: Convergence Line Chart
-    # ==========================================
+    # =========================
+    # GRAPH 1: Convergence Curve (Improved Visual)
+    # =========================
     st.markdown("## 📈 PSO Convergence Curve")
-    
+
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness (Cost)": convergence
     })
 
-    chart1 = alt.Chart(convergence_df).mark_line(
-        point=True,  # Shows dots at every data point
-        strokeWidth=3, # Thicker line
-        color='#29b5e8' # Nice bright blue color
-    ).encode(
-        x=alt.X('Iteration', title='Iteration Number'),
-        y=alt.Y('Best Fitness (Cost)', title='Minimum Cost Found (RM)', scale=alt.Scale(zero=False)),
-        tooltip=['Iteration', alt.Tooltip('Best Fitness (Cost)', format='.2f')]
-    ).properties(
-        height=400
-    ).interactive()
+    chart1 = (
+        alt.Chart(convergence_df)
+        .mark_line(color="#1f77b4", strokeWidth=3)
+        .encode(
+            x=alt.X("Iteration", title="Iteration"),
+            y=alt.Y("Best Fitness (Cost)", title="Best Fitness Value")
+        )
+        .properties(
+            title="Convergence Behaviour of PSO",
+            height=350
+        )
+        .configure_axis(
+            grid=True,
+            labelFontSize=12,
+            titleFontSize=13
+        )
+    )
 
     st.altair_chart(chart1, use_container_width=True)
 
-    # ==========================================
-    # GRAPH 2: Improvement Line Chart
-    # ==========================================
+    # =========================
+    # GRAPH 2: Fitness Improvement (Improved Visual)
+    # =========================
     st.markdown("## 📉 Fitness Improvement per Iteration")
 
     improvement = [0] + [
@@ -174,16 +167,22 @@ if run:
         "Fitness Improvement": improvement
     })
 
-    chart2 = alt.Chart(improvement_df).mark_line(
-        point=True,
-        strokeWidth=2,
-        color='#ff7f0e' # Orange color for contrast
-    ).encode(
-        x=alt.X('Iteration', title='Iteration Number'),
-        y=alt.Y('Fitness Improvement', title='Cost Reduction Amount'),
-        tooltip=['Iteration', alt.Tooltip('Fitness Improvement', format='.4f')]
-    ).properties(
-        height=350
-    ).interactive()
+    chart2 = (
+        alt.Chart(improvement_df)
+        .mark_line(color="#2ca02c", strokeWidth=3, strokeDash=[6, 4])
+        .encode(
+            x=alt.X("Iteration", title="Iteration"),
+            y=alt.Y("Fitness Improvement", title="Improvement Value")
+        )
+        .properties(
+            title="Fitness Improvement Across Iterations",
+            height=350
+        )
+        .configure_axis(
+            grid=True,
+            labelFontSize=12,
+            titleFontSize=13
+        )
+    )
 
     st.altair_chart(chart2, use_container_width=True)
