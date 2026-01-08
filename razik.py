@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
- 
+import matplotlib.pyplot as plt
+
 # =========================
 # Page Configuration
 # =========================
@@ -30,7 +31,6 @@ st.divider()
 data = pd.read_csv("Food_and_Nutrition__.csv")
 data = data[['Calories', 'Protein']].copy()
 
-# Add dummy cost
 np.random.seed(42)
 data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
@@ -74,7 +74,6 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    # Initialize swarm (FLOAT to avoid casting error)
     particles = np.random.randint(
         0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
     ).astype(float)
@@ -87,9 +86,6 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    # =========================
-    # PSO Main Loop
-    # =========================
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
@@ -100,7 +96,6 @@ if run:
                 + C2 * r2 * (gbest - particles[i])
             )
 
-            # SAFE position update
             particles[i] = particles[i] + velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
@@ -112,11 +107,11 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
+    best_meal = data.iloc[gbest.astype(int)]
+
     # =========================
     # Results
     # =========================
-    best_meal = data.iloc[gbest.astype(int)]
-
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
@@ -130,27 +125,37 @@ if run:
     st.divider()
 
     # =========================
-    # Graphs Section
+    # STATIC GRAPH 1: Convergence Curve
     # =========================
-    tab1, tab2 = st.tabs(["📈 Convergence Curve", "📉 Fitness Improvement"])
+    st.markdown("## 📈 PSO Convergence Curve (Static)")
 
-    with tab1:
-        convergence_df = pd.DataFrame({
-            "Iteration": range(1, len(convergence) + 1),
-            "Best Fitness (Cost)": convergence
-        })
-        st.line_chart(convergence_df.set_index("Iteration"))
+    fig1, ax1 = plt.subplots()
+    ax1.plot(range(1, len(convergence) + 1), convergence, marker='o')
+    ax1.set_xlabel("Iteration")
+    ax1.set_ylabel("Best Fitness (Cost)")
+    ax1.set_title("PSO Convergence Curve")
+    ax1.grid(True)
 
-    with tab2:
-        improvement = [0] + [
-            convergence[i-1] - convergence[i]
-            for i in range(1, len(convergence))
-        ]
-        improvement_df = pd.DataFrame({
-            "Iteration": range(1, len(improvement) + 1),
-            "Fitness Improvement": improvement
-        })
-        st.line_chart(improvement_df.set_index("Iteration"))
+    st.pyplot(fig1)
+
+    # =========================
+    # STATIC GRAPH 2: Fitness Improvement
+    # =========================
+    st.markdown("## 📉 Fitness Improvement per Iteration (Static)")
+
+    improvement = [0] + [
+        convergence[i-1] - convergence[i]
+        for i in range(1, len(convergence))
+    ]
+
+    fig2, ax2 = plt.subplots()
+    ax2.plot(range(1, len(improvement) + 1), improvement, color="green", marker='o')
+    ax2.set_xlabel("Iteration")
+    ax2.set_ylabel("Fitness Improvement")
+    ax2.set_title("Fitness Improvement Curve")
+    ax2.grid(True)
+
+    st.pyplot(fig2)
 
     # =========================
     # Dataset Preview
