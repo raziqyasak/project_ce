@@ -115,7 +115,20 @@ if st.button("🚀 Run PSO Optimisation"):
     col2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
 
     # =========================
-    # Convergence Plot (NO matplotlib)
+    # NORMAL Convergence Graph
     # =========================
-    st.subheader("📈 Convergence Curve")
-    st.line_chart(convergence)
+    st.subheader("📈 PSO Convergence Curve")
+
+    convergence_df = pd.DataFrame({
+        "Iteration": range(1, len(convergence) + 1),
+        "Best Fitness (Cost)": convergence
+    })
+
+    st.line_chart(
+        convergence_df.set_index("Iteration"),
+        use_container_width=True
+    )
+
+    # Optional: show convergence data
+    st.subheader("📋 Convergence Data (First 10 Iterations)")
+    st.dataframe(convergence_df.head(10))
