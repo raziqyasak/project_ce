@@ -28,14 +28,24 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-data = pd.read_csv("Food_and_Nutrition__.csv")
-data = data[['Calories', 'Protein']].copy()
+# Using @st.cache_data to prevent reloading csv on every interaction
+@st.cache_data
+def load_data():
+    # Make sure this file exists in your directory
+    df = pd.read_csv("Food_and_Nutrition__.csv")
+    df = df[['Calories', 'Protein']].copy()
+    np.random.seed(42)
+    df['Cost'] = np.random.uniform(2, 10, size=len(df))
+    return df
 
-np.random.seed(42)
-data['Cost'] = np.random.uniform(2, 10, size=len(data))
+try:
+    data = load_data()
+except FileNotFoundError:
+    st.error("Error: 'Food_and_Nutrition__.csv' not found. Please ensure the file is in the project directory.")
+    st.stop()
 
 # =========================
-# Sidebar Parameters (UNCHANGED)
+# Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
 
@@ -68,46 +78,47 @@ def fitness_function(particle):
 # Run Button
 # =========================
 st.markdown("### 🚀 Run Optimisation")
-run = st.button("Start PSO Optimisation")
+run = st.button("Start PSO Optimisation", type="primary")
 
 # =========================
 # PSO Execution
 # =========================
 if run:
-    particles = np.random.randint(
-        0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
-    ).astype(float)
+    with st.spinner("Optimising your meal plan..."):
+        particles = np.random.randint(
+            0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
+        ).astype(float)
 
-    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
+        velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
 
-    pbest = particles.copy()
-    pbest_fitness = np.array([fitness_function(p) for p in particles])
-
-    gbest = pbest[np.argmin(pbest_fitness)]
-    convergence = []
-
-    for _ in range(MAX_ITER):
-        for i in range(NUM_PARTICLES):
-            r1, r2 = random.random(), random.random()
-
-            velocities[i] = (
-                W * velocities[i]
-                + C1 * r1 * (pbest[i] - particles[i])
-                + C2 * r2 * (gbest - particles[i])
-            )
-
-            particles[i] = particles[i] + velocities[i]
-            particles[i] = np.clip(particles[i], 0, len(data) - 1)
-
-            fitness = fitness_function(particles[i])
-            if fitness < pbest_fitness[i]:
-                pbest[i] = particles[i].copy()
-                pbest_fitness[i] = fitness
+        pbest = particles.copy()
+        pbest_fitness = np.array([fitness_function(p) for p in particles])
 
         gbest = pbest[np.argmin(pbest_fitness)]
-        convergence.append(min(pbest_fitness))
+        convergence = []
 
-    best_meal = data.iloc[gbest.astype(int)]
+        for _ in range(MAX_ITER):
+            for i in range(NUM_PARTICLES):
+                r1, r2 = random.random(), random.random()
+
+                velocities[i] = (
+                    W * velocities[i]
+                    + C1 * r1 * (pbest[i] - particles[i])
+                    + C2 * r2 * (gbest - particles[i])
+                )
+
+                particles[i] = particles[i] + velocities[i]
+                particles[i] = np.clip(particles[i], 0, len(data) - 1)
+
+                fitness = fitness_function(particles[i])
+                if fitness < pbest_fitness[i]:
+                    pbest[i] = particles[i].copy()
+                    pbest_fitness[i] = fitness
+
+            gbest = pbest[np.argmin(pbest_fitness)]
+            convergence.append(min(pbest_fitness))
+
+        best_meal = data.iloc[gbest.astype(int)]
 
     # =========================
     # Results
@@ -115,34 +126,54 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    c1, c2 = st.columns(2)
-    c1.metric("Total Calories", int(best_meal['Calories'].sum()))
-    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+    # Metrics
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Calories", f"{int(best_meal['Calories'].sum())} kcal")
+    c2.metric("Total Cost", f"RM {best_meal['Cost'].sum():.2f}")
+    c3.metric("Protein", f"{int(best_meal['Protein'].sum())} g")
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
-    # =========================
-    # STATIC GRAPH 1: Convergence Curve
-    # =========================
+    st.divider()
+
+    # ==========================================
+    # IMPROVED GRAPH 1: Convergence Area Chart
+    # ==========================================
     st.markdown("## 📈 PSO Convergence Curve")
+    st.caption("How the algorithm minimizes the cost over iterations.")
 
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness (Cost)": convergence
     })
 
-    chart1 = alt.Chart(convergence_df).mark_line(point=True).encode(
-        x="Iteration",
-        y="Best Fitness (Cost)"
-    ).properties(height=350)
+    # Define a custom gradient area chart
+    chart1 = alt.Chart(convergence_df).mark_area(
+        line={'color':'#2ecc71'}, # Green Line
+        color=alt.Gradient(
+            gradient='linear',
+            stops=[alt.GradientStop(color='#2ecc71', offset=0),
+                   alt.GradientStop(color='white', offset=1)],
+            x1=1, x2=1, y1=1, y2=0
+        ),
+        interpolate='monotone', # Smooths the line
+        opacity=0.6
+    ).encode(
+        x=alt.X('Iteration', title='Iteration Count'),
+        y=alt.Y('Best Fitness (Cost)', title='Cost Function Value', scale=alt.Scale(zero=False)),
+        tooltip=['Iteration', 'Best Fitness (Cost)']
+    ).properties(
+        height=400
+    ).interactive() # Makes the chart zoomable/pannable
 
     st.altair_chart(chart1, use_container_width=True)
 
-    # =========================
-    # STATIC GRAPH 2: Fitness Improvement
-    # =========================
+    # ==========================================
+    # IMPROVED GRAPH 2: Improvement Area Chart
+    # ==========================================
     st.markdown("## 📉 Fitness Improvement per Iteration")
+    st.caption("The improvement (drop in cost) found at each step.")
 
     improvement = [0] + [
         convergence[i-1] - convergence[i]
@@ -154,9 +185,23 @@ if run:
         "Fitness Improvement": improvement
     })
 
-    chart2 = alt.Chart(improvement_df).mark_line(point=True).encode(
-        x="Iteration",
-        y="Fitness Improvement"
-    ).properties(height=350)
+    # Define a custom area chart with points
+    chart2 = alt.Chart(improvement_df).mark_area(
+        line={'color':'#3498db'}, # Blue Line
+        color=alt.Gradient(
+            gradient='linear',
+            stops=[alt.GradientStop(color='#3498db', offset=0),
+                   alt.GradientStop(color='white', offset=1)],
+            x1=1, x2=1, y1=1, y2=0
+        ),
+        interpolate='step-after', # Step look is often better for incremental changes
+        opacity=0.5
+    ).encode(
+        x=alt.X('Iteration', title='Iteration Count'),
+        y=alt.Y('Fitness Improvement', title='Improvement Amount'),
+        tooltip=['Iteration', alt.Tooltip('Fitness Improvement', format='.4f')]
+    ).properties(
+        height=350
+    ).interactive()
 
     st.altair_chart(chart2, use_container_width=True)
