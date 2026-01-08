@@ -23,7 +23,7 @@ data = pd.read_csv("Food_and_Nutrition__.csv")
 # Use required columns only
 data = data[['Calories', 'Protein']].copy()
 
-# Add dummy cost (since dataset has no price)
+# Add dummy cost (dataset has no price)
 np.random.seed(42)
 data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
@@ -115,7 +115,7 @@ if st.button("🚀 Run PSO Optimisation"):
     col2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
 
     # =========================
-    # NORMAL Convergence Graph
+    # GRAPH 1: PSO Convergence Curve
     # =========================
     st.subheader("📈 PSO Convergence Curve")
 
@@ -129,6 +129,30 @@ if st.button("🚀 Run PSO Optimisation"):
         use_container_width=True
     )
 
-    # Optional: show convergence data
+    # =========================
+    # GRAPH 2: Fitness Improvement Curve
+    # =========================
+    st.subheader("📉 Fitness Improvement per Iteration")
+
+    improvement = [0]
+    for i in range(1, len(convergence)):
+        improvement.append(convergence[i-1] - convergence[i])
+
+    improvement_df = pd.DataFrame({
+        "Iteration": range(1, len(improvement) + 1),
+        "Fitness Improvement": improvement
+    })
+
+    st.line_chart(
+        improvement_df.set_index("Iteration"),
+        use_container_width=True
+    )
+
+    # =========================
+    # Optional: Show Data Tables
+    # =========================
     st.subheader("📋 Convergence Data (First 10 Iterations)")
     st.dataframe(convergence_df.head(10))
+
+    st.subheader("📋 Improvement Data (First 10 Iterations)")
+    st.dataframe(improvement_df.head(10))
