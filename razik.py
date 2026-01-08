@@ -2,25 +2,29 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 
 # =========================
-# Streamlit Title
+# Streamlit Page Setup
 # =========================
+st.set_page_config(page_title="Diet Meal Planning PSO", layout="wide")
+
 st.title("🍽️ Diet Meal Planning Optimisation using PSO")
 
 st.write("""
-This application uses **Particle Swarm Optimization (PSO)** to select
-a daily meal plan that meets calorie requirements while minimizing total cost.
+This application applies **Particle Swarm Optimization (PSO)** to select
+a daily meal plan that satisfies calorie requirements while minimizing total cost.
 """)
 
 # =========================
 # Load Dataset
 # =========================
 data = pd.read_csv("data/Food_and_Nutrition__.csv")
+
+# Use required columns only
 data = data[['Calories', 'Protein']].copy()
 
-# Add dummy cost
+# Add dummy cost (since dataset has no price)
+np.random.seed(42)
 data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
 # =========================
@@ -34,8 +38,8 @@ NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
 W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
-C1 = st.sidebar.slider("Cognitive (C1)", 0.5, 2.5, 1.5)
-C2 = st.sidebar.slider("Social (C2)", 0.5, 2.5, 1.5)
+C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
+C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
 # Fitness Function
@@ -70,7 +74,9 @@ if st.button("🚀 Run PSO Optimisation"):
 
     convergence = []
 
-    # PSO Loop
+    # =========================
+    # PSO Main Loop
+    # =========================
     for iteration in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
@@ -102,20 +108,14 @@ if st.button("🚀 Run PSO Optimisation"):
     best_meal = data.iloc[best_indices]
 
     st.subheader("✅ Optimal Daily Meal Plan")
-    st.dataframe(best_meal)
+    st.dataframe(best_meal, use_container_width=True)
 
-    st.metric("Total Calories", int(best_meal['Calories'].sum()))
-    st.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+    col1, col2 = st.columns(2)
+    col1.metric("Total Calories", int(best_meal['Calories'].sum()))
+    col2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
 
     # =========================
-    # Convergence Plot
+    # Convergence Plot (NO matplotlib)
     # =========================
     st.subheader("📈 Convergence Curve")
-
-    fig, ax = plt.subplots()
-    ax.plot(convergence)
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Best Fitness (Cost)")
-    ax.grid(True)
-
-    st.pyplot(fig)
+    st.line_chart(convergence)
