@@ -4,31 +4,37 @@ import numpy as np
 import random
 
 # =========================
-# Streamlit Page Setup
+# Page Configuration
 # =========================
-st.set_page_config(page_title="Diet Meal Planning PSO", layout="wide")
+st.set_page_config(
+    page_title="Diet Meal Planning Optimisation (PSO)",
+    layout="wide"
+)
 
-st.title("🍽️ Diet Meal Planning Optimisation using PSO")
+# =========================
+# Header Section
+# =========================
+st.markdown("""
+# 🍽️ Diet Meal Planning Optimisation  
+### Using Particle Swarm Optimisation (PSO)
 
-st.write("""
-This application applies **Particle Swarm Optimization (PSO)** to select
-a daily meal plan that satisfies calorie requirements while minimizing total cost.
+This system generates a **low-cost daily meal plan** that satisfies
+**calorie requirements** using an evolutionary optimisation approach.
 """)
+
+st.divider()
 
 # =========================
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition__.csv")
-
-# Use required columns only
 data = data[['Calories', 'Protein']].copy()
 
-# Add dummy cost (dataset has no price)
 np.random.seed(42)
 data['Cost'] = np.random.uniform(2, 10, size=len(data))
 
 # =========================
-# Sidebar Parameters
+# Sidebar (KEEP PARAMETERS – NOT CHANGED)
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
 
@@ -58,11 +64,15 @@ def fitness_function(particle):
     return total_cost + penalty
 
 # =========================
-# Run PSO Button
+# Run Button (Centered)
 # =========================
-if st.button("🚀 Run PSO Optimisation"):
+st.markdown("### 🚀 Run Optimisation")
+run = st.button("Start PSO Optimisation")
 
-    # Initialize swarm
+# =========================
+# Main PSO Execution
+# =========================
+if run:
     particles = np.random.randint(0, len(data), (NUM_PARTICLES, MEALS_PER_DAY))
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
 
@@ -70,14 +80,9 @@ if st.button("🚀 Run PSO Optimisation"):
     pbest_fitness = np.array([fitness_function(p) for p in particles])
 
     gbest = pbest[np.argmin(pbest_fitness)]
-    gbest_fitness = min(pbest_fitness)
-
     convergence = []
 
-    # =========================
-    # PSO Main Loop
-    # =========================
-    for iteration in range(MAX_ITER):
+    for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
 
@@ -87,72 +92,43 @@ if st.button("🚀 Run PSO Optimisation"):
                 + C2 * r2 * (gbest - particles[i])
             )
 
-            particles[i] = particles[i] + velocities[i]
+            particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
             fitness = fitness_function(particles[i])
-
             if fitness < pbest_fitness[i]:
                 pbest[i] = particles[i].copy()
                 pbest_fitness[i] = fitness
 
         gbest = pbest[np.argmin(pbest_fitness)]
-        gbest_fitness = min(pbest_fitness)
+        convergence.append(min(pbest_fitness))
 
-        convergence.append(gbest_fitness)
+    best_meal = data.iloc[gbest.astype(int)]
+
+    st.divider()
 
     # =========================
-    # Results
+    # Results Section
     # =========================
-    best_indices = gbest.astype(int)
-    best_meal = data.iloc[best_indices]
+    st.markdown("## ✅ Optimisation Results")
 
-    st.subheader("✅ Optimal Daily Meal Plan")
+    c1, c2 = st.columns(2)
+    c1.metric("Total Calories", int(best_meal['Calories'].sum()))
+    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+
+    st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
-    col1, col2 = st.columns(2)
-    col1.metric("Total Calories", int(best_meal['Calories'].sum()))
-    col2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+    st.divider()
 
     # =========================
-    # GRAPH 1: PSO Convergence Curve
+    # Analysis Section (Tabs)
     # =========================
-    st.subheader("📈 PSO Convergence Curve")
+    tab1, tab2 = st.tabs(["📈 Convergence Curve", "📉 Fitness Improvement"])
 
-    convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
-        "Best Fitness (Cost)": convergence
-    })
-
-    st.line_chart(
-        convergence_df.set_index("Iteration"),
-        use_container_width=True
-    )
-
-    # =========================
-    # GRAPH 2: Fitness Improvement Curve
-    # =========================
-    st.subheader("📉 Fitness Improvement per Iteration")
-
-    improvement = [0]
-    for i in range(1, len(convergence)):
-        improvement.append(convergence[i-1] - convergence[i])
-
-    improvement_df = pd.DataFrame({
-        "Iteration": range(1, len(improvement) + 1),
-        "Fitness Improvement": improvement
-    })
-
-    st.line_chart(
-        improvement_df.set_index("Iteration"),
-        use_container_width=True
-    )
-
-    # =========================
-    # Optional: Show Data Tables
-    # =========================
-    st.subheader("📋 Convergence Data (First 10 Iterations)")
-    st.dataframe(convergence_df.head(10))
-
-    st.subheader("📋 Improvement Data (First 10 Iterations)")
-    st.dataframe(improvement_df.head(10))
+    with tab1:
+        convergence_df = pd.DataFrame({
+            "Iteration": range(1, len(convergence) + 1),
+            "Best Fitness (Cost)": convergence
+        })
+        st.line_chart(convergence_df.set_index("Iteration"))
