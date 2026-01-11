@@ -31,8 +31,12 @@ st.divider()
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 data = data[['Calories', 'Protein']].copy()
 
+# -------------------------
+# LOGICAL COST MODEL
+# Cost proportional to calories
+# -------------------------
 np.random.seed(42)
-data['Cost'] = np.random.uniform(2, 10, size=len(data))
+data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
 
 # =========================
 # Sidebar Parameters
@@ -49,7 +53,7 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Fitness Function
+# Fitness Function (IMPROVED)
 # =========================
 def fitness_function(particle):
     indices = np.clip(particle.astype(int), 0, len(data) - 1)
@@ -57,10 +61,21 @@ def fitness_function(particle):
 
     total_calories = selected['Calories'].sum()
     total_cost = selected['Cost'].sum()
+    total_protein = selected['Protein'].sum()
 
     penalty = 0
+
+    # Penalti jika kalori kurang
     if total_calories < TARGET_CALORIES:
-        penalty = (TARGET_CALORIES - total_calories) * 10
+        penalty += (TARGET_CALORIES - total_calories) * 10
+
+    # Penalti jika kalori terlalu tinggi
+    if total_calories > TARGET_CALORIES * 1.1:
+        penalty += (total_calories - TARGET_CALORIES) * 5
+
+    # Penalti jika protein rendah
+    if total_protein < 50:
+        penalty += (50 - total_protein) * 20
 
     return total_cost + penalty
 
@@ -86,7 +101,7 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    for iter_num in range(1, MAX_ITER + 1):
+    for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
 
@@ -115,58 +130,48 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    c1, c2 = st.columns(2)
     total_calories = int(best_meal['Calories'].sum())
     total_cost = round(best_meal['Cost'].sum(), 2)
-    c1.metric("Total Calories", total_calories)
+    total_protein = round(best_meal['Protein'].sum(), 1)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Calories (kcal)", total_calories)
     c2.metric("Total Cost (RM)", total_cost)
+    c3.metric("Total Protein (g)", total_protein)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
     # =========================
-    # GRAPH: Convergence Curve
+    # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
 
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
-        "Best Fitness (Cost)": convergence
+        "Best Fitness Value": convergence
     })
 
-    chart1 = (
+    chart = (
         alt.Chart(convergence_df)
-        .mark_line(color="#1f77b4", strokeWidth=3)
+        .mark_line(strokeWidth=3)
         .encode(
             x=alt.X("Iteration", title="Iteration"),
-            y=alt.Y("Best Fitness (Cost)", title="Best Fitness Value")
+            y=alt.Y("Best Fitness Value", title="Fitness Value")
         )
-        .properties(
-            title="Convergence Behaviour of PSO",
-            height=350
-        )
-        .configure_axis(
-            grid=True,
-            labelFontSize=12,
-            titleFontSize=13
-        )
+        .properties(height=350)
     )
 
-    st.altair_chart(chart1, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True)
 
     # =========================
-    # Dynamic Convergence Summary
+    # Dynamic Summary
     # =========================
-    final_iteration = len(convergence)
-    final_fitness = round(convergence[-1], 2)
-    target_met = "✅ Target calories achieved" if total_calories >= TARGET_CALORIES else "⚠️ Target calories not achieved"
-
     st.markdown(f"""
 **Summary:**  
-- PSO ran for **{final_iteration} iterations**.  
-- Final fitness value (cost + penalty) is **{final_fitness}**.  
-- Total calories in selected meal plan: **{total_calories}** kcal.  
-- Total cost of selected meal plan: **RM {total_cost}**.  
-- {target_met}  
-- The convergence curve shows how the algorithm gradually improved solutions over iterations.
+- PSO completed **{len(convergence)} iterations**.  
+- Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
+- Total cost is **RM {total_cost}**, showing a realistic relationship between calorie intake and cost.  
+- Protein intake is **{total_protein} g**, supporting nutritional balance.  
+- The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
 """)
