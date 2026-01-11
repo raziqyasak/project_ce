@@ -123,7 +123,7 @@ if run:
     st.dataframe(best_meal, use_container_width=True)
 
     # =========================
-    # GRAPH 1: Convergence Curve
+    # GRAPH: Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
 
@@ -151,38 +151,3 @@ if run:
     )
 
     st.altair_chart(chart1, use_container_width=True)
-
-    # =========================
-    # GRAPH 2: Fitness Improvement
-    # =========================
-    st.markdown("## 📉 Fitness Improvement per Iteration")
-
-    improvement = [0] + [
-        convergence[i - 1] - convergence[i]
-        for i in range(1, len(convergence))
-    ]
-
-    improvement_df = pd.DataFrame({
-        "Iteration": range(1, len(improvement) + 1),
-        "Fitness Improvement": improvement
-    })
-
-    chart2 = (
-        alt.Chart(improvement_df)
-        .mark_line(color="#2ca02c", strokeWidth=3, strokeDash=[6, 4])
-        .encode(
-            x=alt.X("Iteration", title="Iteration"),
-            y=alt.Y("Fitness Improvement", title="Improvement Value")
-        )
-        .properties(
-            title="Fitness Improvement Across Iterations",
-            height=350
-        )
-        .configure_axis(
-            grid=True,
-            labelFontSize=12,
-            titleFontSize=13
-        )
-    )
-
-    st.altair_chart(chart2, use_container_width=True)
