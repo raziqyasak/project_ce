@@ -4,7 +4,7 @@ import numpy as np
 import random 
 import altair as alt
 
-# =========================
+# ========================= 
 # Page Configuration
 # =========================
 st.set_page_config(
