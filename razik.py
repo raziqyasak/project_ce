@@ -86,7 +86,7 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    for _ in range(MAX_ITER):
+    for iter_num in range(1, MAX_ITER + 1):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
 
@@ -116,8 +116,10 @@ if run:
     st.markdown("## ✅ Optimisation Results")
 
     c1, c2 = st.columns(2)
-    c1.metric("Total Calories", int(best_meal['Calories'].sum()))
-    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+    total_calories = int(best_meal['Calories'].sum())
+    total_cost = round(best_meal['Cost'].sum(), 2)
+    c1.metric("Total Calories", total_calories)
+    c2.metric("Total Cost (RM)", total_cost)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
@@ -151,3 +153,20 @@ if run:
     )
 
     st.altair_chart(chart1, use_container_width=True)
+
+    # =========================
+    # Dynamic Convergence Summary
+    # =========================
+    final_iteration = len(convergence)
+    final_fitness = round(convergence[-1], 2)
+    target_met = "✅ Target calories achieved" if total_calories >= TARGET_CALORIES else "⚠️ Target calories not achieved"
+
+    st.markdown(f"""
+**Summary:**  
+- PSO ran for **{final_iteration} iterations**.  
+- Final fitness value (cost + penalty) is **{final_fitness}**.  
+- Total calories in selected meal plan: **{total_calories}** kcal.  
+- Total cost of selected meal plan: **RM {total_cost}**.  
+- {target_met}  
+- The convergence curve shows how the algorithm gradually improved solutions over iterations.
+""")
