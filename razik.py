@@ -28,7 +28,7 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-data = pd.read_csv("Food_and_Nutrition_with_Price_.csv")
+data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 data = data[['Calories', 'Protein']].copy()
 
 np.random.seed(42)
