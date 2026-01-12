@@ -50,14 +50,20 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fixed Meal Price Generator
 # =========================
 def generate_meal_prices_fixed(total_price):
-    min_price = 2  # setiap meal minimum 2 RM
+    min_price = 2
     n_meals = 4
+    # pastikan total_price cukup untuk min_price semua meal
     if total_price < min_price * n_meals:
-        total_price = min_price * n_meals  # pastikan total cukup
-    # Bahagikan harga rawak
+        total_price = min_price * n_meals
+
     ratios = np.random.dirichlet([1]*n_meals)
-    prices = ratios * (total_price - min_price*n_meals)  # baki selepas min price
-    prices = [round(p + min_price, 2) for p in prices]   # tambah min_price setiap meal
+    prices = ratios * (total_price - min_price*n_meals)
+    prices = [p + min_price for p in prices]
+
+    # betulkan supaya jumlah = total_price
+    prices[-1] += total_price - sum(prices)
+    prices = [round(p, 2) for p in prices]
+
     return {
         "Breakfast": prices[0],
         "Lunch": prices[1],
@@ -72,6 +78,7 @@ def fitness_function(index):
     row = data.iloc[int(index)]
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
+    # weighted fitness
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -98,13 +105,11 @@ if run:
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
-
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-
             particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
@@ -117,7 +122,6 @@ if run:
         convergence.append(min(pbest_fitness))
 
     runtime = round(time.time() - start_time, 3)
-
     best_plan = data.iloc[int(gbest)]
     meal_prices = generate_meal_prices_fixed(best_plan['Price_RM'])
 
@@ -132,16 +136,10 @@ if run:
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
 
-    st.markdown("### 🍳 Daily Meal Suggestions & Prices")
+    st.markdown("### 🍳 Daily Meal Prices (≥ RM 2 each)")
 
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
-        "Suggestion": [
-            best_plan.get('Breakfast Suggestion', 'N/A'),
-            best_plan.get('Lunch Suggestion', 'N/A'),
-            best_plan.get('Dinner Suggestion', 'N/A'),
-            best_plan.get('Snack Suggestion', 'N/A')
-        ],
         "Price (RM)": [
             meal_prices["Breakfast"],
             meal_prices["Lunch"],
@@ -156,9 +154,8 @@ if run:
     # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
-
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
+        "Iteration": range(1, len(convergence)+1),
         "Best Fitness Value": convergence
     })
 
@@ -181,7 +178,7 @@ if run:
 ### 📝 Summary
 - Target Calories: **{TARGET_CALORIES} kcal**
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
-- Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
+- Total Daily Price: **RM {round(best_plan['Price_RM'],2)}**
 - PSO Runtime: **{runtime} seconds**
-- Each meal is priced **≥ 2 RM** while keeping total daily cost same as dataset.
+- Each meal has **≥ RM 2** and total price matches dataset.
 """)
