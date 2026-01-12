@@ -21,7 +21,7 @@ st.markdown("""
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects a daily meal plan that satisfies calorie requirements
-while minimising total price (RM).
+while minimising total cost (Price in RM).
 """)
 st.divider()
 
@@ -29,16 +29,11 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-data = data[['Calories', 'Protein']].copy()  # Ambil kolum sedia ada
 
-# -------------------------
-# LOGICAL PRICE MODEL
-# Price proportional to calories
-# -------------------------
-np.random.seed(42)
-data['Price_RM'] = data['Calories'] * np.random.uniform(0.008, 0.015)
+# Pastikan dataset ada kolum Food, Calories, Protein, Price_RM
+data = data[['Food', 'Calories', 'Protein', 'Price_RM']].copy()
 
-NUM_MEALS = len(data)  # total meals in dataset
+NUM_MEALS = len(data)
 
 # =========================
 # Sidebar Parameters
@@ -56,8 +51,7 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    # pastikan sekurang-kurangnya 1 hidangan dipilih
-    if particle.sum() == 0:
+    if particle.sum() == 0:  # pastikan sekurang-kurangnya 1 hidangan dipilih
         particle[random.randint(0, len(particle)-1)] = 1
 
     selected = data[particle.astype(bool)]
@@ -86,9 +80,6 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    start_time = time.time()  # untuk kira runtime
-
-    # Binary PSO: 0 = not selected, 1 = selected
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
@@ -97,7 +88,9 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    for _ in range(MAX_ITER):
+    progress_bar = st.progress(0)
+
+    for iteration in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
             velocities[i] = (
@@ -117,8 +110,8 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
-    end_time = time.time()
-    runtime = round(end_time - start_time, 2)  # dalam saat
+        progress_bar.progress((iteration+1)/MAX_ITER)
+        time.sleep(0.01)  # bagi effect “bergerak” sedikit
 
     best_meal = data[gbest.astype(bool)]
 
@@ -132,11 +125,10 @@ if run:
     total_price = round(best_meal['Price_RM'].sum(), 2)
     total_protein = round(best_meal['Protein'].sum(), 1)
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     c1.metric("Total Calories (kcal)", total_calories)
     c2.metric("Total Price (RM)", total_price)
     c3.metric("Total Protein (g)", total_protein)
-    c4.metric("Runtime (s)", runtime)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
