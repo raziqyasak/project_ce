@@ -23,8 +23,7 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-
-# Pastikan dataset ada kolum: Meal, Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
+# Pastikan dataset ada kolum: Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
 NUM_MEALS = len(data)
 
 # =========================
@@ -43,6 +42,7 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
+    # pastikan sekurang-kurangnya 1 hidangan dipilih
     if particle.sum() == 0:
         particle[random.randint(0, len(particle)-1)] = 1
 
@@ -72,6 +72,7 @@ run = st.button("Start PSO Optimisation")
 # =========================
 if run:
     start_time = time.time()
+    # Binary PSO
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
@@ -119,7 +120,7 @@ if run:
     c3.metric("Total Protein (g)", total_protein)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
-    st.dataframe(best_meal[['Meal', 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'Calories', 'Protein', 'Price_RM']], use_container_width=True)
+    st.dataframe(best_meal[['Breakfast','Lunch','Dinner','Snack','Calories','Protein','Price_RM']], use_container_width=True)
 
     # =========================
     # Convergence Curve
