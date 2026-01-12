@@ -17,7 +17,7 @@ st.set_page_config(
 # Header
 # =========================
 st.markdown("""
-# 🍽️ Diet Meal Planning Optimisation  
+#  Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects **one daily diet plan** that achieves calories
@@ -33,7 +33,7 @@ data = pd.read_csv("Food_and_Nutrition_with_Price_LOGICAL.csv")
 # =========================
 # Sidebar Parameters
 # =========================
-st.sidebar.header("⚙️ PSO Parameters")
+st.sidebar.header(" PSO Parameters")
 TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
@@ -85,7 +85,7 @@ def fitness_function(index):
 # =========================
 # Run Button
 # =========================
-st.markdown("### 🚀 Run Optimisation")
+st.markdown("###  Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
@@ -129,13 +129,13 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("## ✅ Optimisation Results")
+    st.markdown("##  Optimisation Results")
     c1, c2, c3 = st.columns(3)
     c1.metric("Calories (kcal)", int(best_plan['Calories']))
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
 
-    st.markdown("### 🍳 Daily Meal Suggestions & Prices")
+    st.markdown("###  Daily Meal Suggestions & Prices")
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
         "Suggestion": [
@@ -156,7 +156,7 @@ if run:
     # =========================
     # Convergence Curve
     # =========================
-    st.markdown("## 📈 PSO Convergence Curve")
+    st.markdown("##  PSO Convergence Curve")
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
@@ -169,14 +169,3 @@ if run:
     )
     st.altair_chart(chart, use_container_width=True)
 
-    # =========================
-    # Summary
-    # =========================
-    st.markdown(f"""
-### 📝 Summary
-- Target Calories: **{TARGET_CALORIES} kcal**
-- Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
-- Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
-- PSO Runtime: **{runtime} seconds**
-- Meal prices are rounded to nearest 50 sen, minimum RM1, maintaining total daily cost.
-""")
