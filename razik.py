@@ -28,7 +28,7 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
+data = pd.read_csv("Food_and_Nutrition_with_Price_LOGICAL.csv")
 
 # =========================
 # Sidebar Parameters
