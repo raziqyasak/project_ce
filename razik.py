@@ -19,10 +19,9 @@ st.markdown("""
 # 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
-This system selects a daily meal plan that satisfies nutritional requirements
+This system selects a daily meal plan that satisfies calorie requirements
 while minimising total cost.
 """)
-
 st.divider()
 
 # =========================
@@ -53,24 +52,6 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Objective Selection
-# =========================
-st.sidebar.header("🎯 Optimisation Objective")
-
-OBJECTIVE_TYPE = st.sidebar.radio(
-    "Select Objective Type",
-    [
-        "Single Objective (Minimise Cost)",
-        "Multi Objective (Cost + Nutrition Balance)"
-    ]
-)
-
-if OBJECTIVE_TYPE == "Multi Objective (Cost + Nutrition Balance)":
-    COST_WEIGHT = st.sidebar.slider("Cost Weight", 0.1, 1.0, 0.5)
-    CAL_WEIGHT = st.sidebar.slider("Calories Deviation Weight", 0.1, 1.0, 0.3)
-    PROTEIN_WEIGHT = st.sidebar.slider("Protein Deficit Weight", 0.1, 1.0, 0.2)
-
-# =========================
 # Fitness Function
 # =========================
 def fitness_function(particle):
@@ -81,36 +62,16 @@ def fitness_function(particle):
     total_cost = selected['Cost'].sum()
     total_protein = selected['Protein'].sum()
 
-    # =========================
-    # SINGLE OBJECTIVE
-    # =========================
-    if OBJECTIVE_TYPE == "Single Objective (Minimise Cost)":
-        penalty = 0
+    # Penalty for being under/over calorie target or low protein
+    penalty = 0
+    if total_calories < TARGET_CALORIES:
+        penalty += (TARGET_CALORIES - total_calories) * 10
+    if total_calories > TARGET_CALORIES * 1.1:
+        penalty += (total_calories - TARGET_CALORIES) * 5
+    if total_protein < 50:
+        penalty += (50 - total_protein) * 20
 
-        if total_calories < TARGET_CALORIES:
-            penalty += (TARGET_CALORIES - total_calories) * 10
-
-        if total_calories > TARGET_CALORIES * 1.1:
-            penalty += (total_calories - TARGET_CALORIES) * 5
-
-        if total_protein < 50:
-            penalty += (50 - total_protein) * 20
-
-        return total_cost + penalty
-
-    # =========================
-    # MULTI OBJECTIVE (Weighted Sum)
-    # =========================
-    calorie_deviation = abs(total_calories - TARGET_CALORIES)
-    protein_deficit = max(0, 50 - total_protein)
-
-    fitness = (
-        COST_WEIGHT * total_cost
-        + CAL_WEIGHT * calorie_deviation
-        + PROTEIN_WEIGHT * protein_deficit
-    )
-
-    return fitness
+    return total_cost + penalty
 
 # =========================
 # Run Button
@@ -125,25 +86,21 @@ if run:
     particles = np.random.randint(
         0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
     ).astype(float)
-
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
 
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
-
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
-
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-
             particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
@@ -179,7 +136,6 @@ if run:
     # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
-
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
@@ -201,12 +157,10 @@ if run:
     # Summary
     # =========================
     st.markdown(f"""
-**Optimisation Type:** {OBJECTIVE_TYPE}  
-
 **Summary:**  
 - PSO completed **{len(convergence)} iterations**.  
-- Final meal plan achieves **{total_calories} kcal** (Target: {TARGET_CALORIES} kcal).  
-- Total cost is **RM {total_cost}**.  
-- Protein intake is **{total_protein} g**.  
-- Convergence curve shows stable optimisation behaviour.
+- Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
+- Total cost is **RM {total_cost}**, showing a realistic relationship between calorie intake and cost.  
+- Protein intake is **{total_protein} g**, supporting nutritional balance.  
+- The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
 """)
