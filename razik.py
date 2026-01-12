@@ -30,20 +30,6 @@ st.divider()
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 
-# Pastikan column yang digunakan wujud
-# Ubah sini ikut dataset awak
-if 'Food' not in data.columns:
-    data['Food'] = [f"Meal {i+1}" for i in range(len(data))]
-
-if 'Calories' not in data.columns:
-    data['Calories'] = np.random.randint(100, 800, size=len(data))
-
-if 'Protein' not in data.columns:
-    data['Protein'] = np.random.randint(5, 50, size=len(data))
-
-if 'Price_RM' not in data.columns:
-    data['Price_RM'] = np.random.uniform(5, 20, size=len(data)).round(2)
-
 # =========================
 # Sidebar Parameters
 # =========================
@@ -61,16 +47,18 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Random Meal Price Generator
+# Random Meal Price Generator (min RM2 per meal)
 # =========================
 def generate_meal_prices(total_price):
     ratios = np.random.dirichlet([1, 1, 1, 1])
     prices = ratios * total_price
+    # Pastikan setiap harga >= 2 RM
+    prices = [max(2, round(p,2)) for p in prices]
     return {
-        "Breakfast": round(prices[0], 2),
-        "Lunch": round(prices[1], 2),
-        "Dinner": round(prices[2], 2),
-        "Snack": round(prices[3], 2)
+        "Breakfast": prices[0],
+        "Lunch": prices[1],
+        "Dinner": prices[2],
+        "Snack": prices[3]
     }
 
 # =========================
@@ -80,6 +68,7 @@ def fitness_function(index):
     row = data.iloc[int(index)]
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
+    # Weighted fitness: 70% calories, 30% price
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -106,11 +95,13 @@ if run:
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
+
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
+
             particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
@@ -138,7 +129,7 @@ if run:
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
 
-    st.markdown("### 🍳 Daily Meal Prices (Random Distribution)")
+    st.markdown("### 🍳 Daily Meal Suggestions & Prices")
 
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
@@ -156,6 +147,7 @@ if run:
     # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
+
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
@@ -182,5 +174,5 @@ if run:
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
 - Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
 - PSO Runtime: **{runtime} seconds**
-- Meal prices are randomly distributed while maintaining total daily cost.
+- Each meal price is **≥ RM2**.
 """)
