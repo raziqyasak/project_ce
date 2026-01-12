@@ -78,7 +78,7 @@ def fitness_function(particle):
 # =========================
 # Run Button
 # =========================
-st.markdown("### 🚀 Run Optimisation")
+st.markdown("### Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
@@ -120,7 +120,7 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("## ✅ Optimisation Results")
+    st.markdown("##  Optimisation Results")
 
     total_calories = int(best_meal['Calories'].sum())
     total_cost = round(best_meal['Cost'].sum(), 2)
@@ -137,7 +137,7 @@ if run:
     # =========================
     # Convergence Curve
     # =========================
-    st.markdown("## 📈 PSO Convergence Curve")
+    st.markdown("## PSO Convergence Curve")
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
