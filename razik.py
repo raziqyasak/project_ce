@@ -42,7 +42,7 @@ data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
 
-TARGET_CALORIES = st.sidebar.slider("Target Calories", 1500, 5000, 2000)
+TARGET_CALORIES = st.sidebar.slider("Target Calories", 5000, 2000)
 MEALS_PER_DAY = st.sidebar.slider("Meals per Day", 2, 5, 3)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
