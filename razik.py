@@ -34,41 +34,29 @@ data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
+
+TARGET_CALORIES = st.sidebar.slider(
+    "Target Calories (kcal)", 1500, 3000, 1900
+)
+
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
+
 W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
 C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Meal Price Generator (≥ RM 2, total = Price_RM)
+# Random Meal Price Generator
 # =========================
-def generate_meal_prices_fixed(total_price):
-    min_price = 2
-    n_meals = 4
-
-    # pastikan total_price cukup untuk min_price semua meal
-    if total_price < min_price * n_meals:
-        total_price = min_price * n_meals
-
-    remaining = total_price - min_price * n_meals
-
-    # random pembahagian baki harga
-    ratios = np.random.dirichlet([1]*n_meals)
-    prices = [min_price + r*remaining for r in ratios]
-
-    # betulkan supaya jumlah tepat sama
-    diff = total_price - sum(prices)
-    prices[-1] += diff
-
-    prices = [round(p, 2) for p in prices]
-
+def generate_meal_prices(total_price):
+    ratios = np.random.dirichlet([1, 1, 1, 1])
+    prices = ratios * total_price
     return {
-        "Breakfast": prices[0],
-        "Lunch": prices[1],
-        "Dinner": prices[2],
-        "Snack": prices[3]
+        "Breakfast": round(prices[0], 2),
+        "Lunch": round(prices[1], 2),
+        "Dinner": round(prices[2], 2),
+        "Snack": round(prices[3], 2)
     }
 
 # =========================
@@ -76,8 +64,11 @@ def generate_meal_prices_fixed(total_price):
 # =========================
 def fitness_function(index):
     row = data.iloc[int(index)]
+
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
+
+    # Weighted fitness
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -104,11 +95,13 @@ if run:
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
+
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
+
             particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
@@ -123,7 +116,7 @@ if run:
     runtime = round(time.time() - start_time, 3)
 
     best_plan = data.iloc[int(gbest)]
-    meal_prices = generate_meal_prices_fixed(best_plan['Price_RM'])
+    meal_prices = generate_meal_prices(best_plan['Price_RM'])
 
     # =========================
     # Results
@@ -141,10 +134,10 @@ if run:
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
         "Suggestion": [
-            best_plan.get('Breakfast Suggestion', '-'),
-            best_plan.get('Lunch Suggestion', '-'),
-            best_plan.get('Dinner Suggestion', '-'),
-            best_plan.get('Snack Suggestion', '-')
+            best_plan['Breakfast Suggestion'],
+            best_plan['Lunch Suggestion'],
+            best_plan['Dinner Suggestion'],
+            best_plan['Snack Suggestion']
         ],
         "Price (RM)": [
             meal_prices["Breakfast"],
@@ -160,10 +153,12 @@ if run:
     # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
+
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence)+1),
+        "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
     })
+
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
@@ -173,6 +168,7 @@ if run:
         )
         .properties(height=350)
     )
+
     st.altair_chart(chart, use_container_width=True)
 
     # =========================
@@ -184,5 +180,5 @@ if run:
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
 - Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
 - PSO Runtime: **{runtime} seconds**
-- Meal prices are randomly distributed but each ≥ RM 2, total matches Price_RM.
+- Meal prices are randomly distributed while maintaining total daily cost.
 """)
