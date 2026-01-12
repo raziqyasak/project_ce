@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import random 
+import random
 import altair as alt
 
 # =========================
@@ -19,7 +19,7 @@ st.markdown("""
 # 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
-This system selects a daily meal plan that satisfies calorie requirements
+This system selects a daily meal plan that satisfies nutritional requirements
 while minimising total cost.
 """)
 
@@ -53,7 +53,25 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Fitness Function (IMPROVED)
+# Objective Selection
+# =========================
+st.sidebar.header("🎯 Optimisation Objective")
+
+OBJECTIVE_TYPE = st.sidebar.radio(
+    "Select Objective Type",
+    [
+        "Single Objective (Minimise Cost)",
+        "Multi Objective (Cost + Nutrition Balance)"
+    ]
+)
+
+if OBJECTIVE_TYPE == "Multi Objective (Cost + Nutrition Balance)":
+    COST_WEIGHT = st.sidebar.slider("Cost Weight", 0.1, 1.0, 0.5)
+    CAL_WEIGHT = st.sidebar.slider("Calories Deviation Weight", 0.1, 1.0, 0.3)
+    PROTEIN_WEIGHT = st.sidebar.slider("Protein Deficit Weight", 0.1, 1.0, 0.2)
+
+# =========================
+# Fitness Function
 # =========================
 def fitness_function(particle):
     indices = np.clip(particle.astype(int), 0, len(data) - 1)
@@ -63,21 +81,36 @@ def fitness_function(particle):
     total_cost = selected['Cost'].sum()
     total_protein = selected['Protein'].sum()
 
-    penalty = 0
+    # =========================
+    # SINGLE OBJECTIVE
+    # =========================
+    if OBJECTIVE_TYPE == "Single Objective (Minimise Cost)":
+        penalty = 0
 
-    # Penalti jika kalori kurang
-    if total_calories < TARGET_CALORIES:
-        penalty += (TARGET_CALORIES - total_calories) * 10
+        if total_calories < TARGET_CALORIES:
+            penalty += (TARGET_CALORIES - total_calories) * 10
 
-    # Penalti jika kalori terlalu tinggi
-    if total_calories > TARGET_CALORIES * 1.1:
-        penalty += (total_calories - TARGET_CALORIES) * 5
+        if total_calories > TARGET_CALORIES * 1.1:
+            penalty += (total_calories - TARGET_CALORIES) * 5
 
-    # Penalti jika protein rendah
-    if total_protein < 50:
-        penalty += (50 - total_protein) * 20
+        if total_protein < 50:
+            penalty += (50 - total_protein) * 20
 
-    return total_cost + penalty
+        return total_cost + penalty
+
+    # =========================
+    # MULTI OBJECTIVE (Weighted Sum)
+    # =========================
+    calorie_deviation = abs(total_calories - TARGET_CALORIES)
+    protein_deficit = max(0, 50 - total_protein)
+
+    fitness = (
+        COST_WEIGHT * total_cost
+        + CAL_WEIGHT * calorie_deviation
+        + PROTEIN_WEIGHT * protein_deficit
+    )
+
+    return fitness
 
 # =========================
 # Run Button
@@ -165,13 +198,15 @@ if run:
     st.altair_chart(chart, use_container_width=True)
 
     # =========================
-    # Dynamic Summary
+    # Summary
     # =========================
     st.markdown(f"""
+**Optimisation Type:** {OBJECTIVE_TYPE}  
+
 **Summary:**  
 - PSO completed **{len(convergence)} iterations**.  
-- Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
-- Total cost is **RM {total_cost}**, showing a realistic relationship between calorie intake and cost.  
-- Protein intake is **{total_protein} g**, supporting nutritional balance.  
-- The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
+- Final meal plan achieves **{total_calories} kcal** (Target: {TARGET_CALORIES} kcal).  
+- Total cost is **RM {total_cost}**.  
+- Protein intake is **{total_protein} g**.  
+- Convergence curve shows stable optimisation behaviour.
 """)
