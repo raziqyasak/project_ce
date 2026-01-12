@@ -47,13 +47,17 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Random Meal Price Generator (min RM2 per meal)
+# Fixed Meal Price Generator
 # =========================
-def generate_meal_prices(total_price):
-    ratios = np.random.dirichlet([1, 1, 1, 1])
-    prices = ratios * total_price
-    # Pastikan setiap harga >= 2 RM
-    prices = [max(2, round(p,2)) for p in prices]
+def generate_meal_prices_fixed(total_price):
+    min_price = 2  # setiap meal minimum 2 RM
+    n_meals = 4
+    if total_price < min_price * n_meals:
+        total_price = min_price * n_meals  # pastikan total cukup
+    # Bahagikan harga rawak
+    ratios = np.random.dirichlet([1]*n_meals)
+    prices = ratios * (total_price - min_price*n_meals)  # baki selepas min price
+    prices = [round(p + min_price, 2) for p in prices]   # tambah min_price setiap meal
     return {
         "Breakfast": prices[0],
         "Lunch": prices[1],
@@ -68,7 +72,6 @@ def fitness_function(index):
     row = data.iloc[int(index)]
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
-    # Weighted fitness: 70% calories, 30% price
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -116,7 +119,7 @@ if run:
     runtime = round(time.time() - start_time, 3)
 
     best_plan = data.iloc[int(gbest)]
-    meal_prices = generate_meal_prices(best_plan['Price_RM'])
+    meal_prices = generate_meal_prices_fixed(best_plan['Price_RM'])
 
     # =========================
     # Results
@@ -133,6 +136,12 @@ if run:
 
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
+        "Suggestion": [
+            best_plan.get('Breakfast Suggestion', 'N/A'),
+            best_plan.get('Lunch Suggestion', 'N/A'),
+            best_plan.get('Dinner Suggestion', 'N/A'),
+            best_plan.get('Snack Suggestion', 'N/A')
+        ],
         "Price (RM)": [
             meal_prices["Breakfast"],
             meal_prices["Lunch"],
@@ -174,5 +183,5 @@ if run:
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
 - Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
 - PSO Runtime: **{runtime} seconds**
-- Each meal price is **≥ RM2**.
+- Each meal is priced **≥ 2 RM** while keeping total daily cost same as dataset.
 """)
