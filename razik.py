@@ -8,14 +8,8 @@ import time
 # =========================
 # Page Configuration
 # =========================
-st.set_page_config(
-    page_title="Diet Meal Planning Optimisation (PSO)",
-    layout="wide"
-)
+st.set_page_config(page_title="Diet Meal Planning Optimisation (PSO)", layout="wide")
 
-# =========================
-# Header
-# =========================
 st.markdown("""
 # 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
@@ -29,9 +23,8 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-# Pastikan nama kolum ikut CSV awak
-# Contoh: 'Meal', 'Calories', 'Protein', 'Price'
-data = data[['Meal', 'Calories', 'Protein', 'Price']].copy()
+
+# Pastikan dataset ada kolum: Meal, Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
 NUM_MEALS = len(data)
 
 # =========================
@@ -50,16 +43,14 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    # pastikan sekurang-kurangnya 1 hidangan dipilih
     if particle.sum() == 0:
         particle[random.randint(0, len(particle)-1)] = 1
 
     selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
-    total_cost = selected['Price'].sum()
+    total_cost = selected['Price_RM'].sum()
     total_protein = selected['Protein'].sum()
 
-    # Penalti untuk kurang/lebih kalori atau protein rendah
     penalty = 0
     if total_calories < TARGET_CALORIES:
         penalty += (TARGET_CALORIES - total_calories) * 10
@@ -80,9 +71,7 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    start_time = time.time()  # Start runtime
-
-    # Binary PSO: 0 = not selected, 1 = selected
+    start_time = time.time()
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
@@ -99,7 +88,6 @@ if run:
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-            # Update particle dengan sigmoid → binary
             particles[i] = 1 / (1 + np.exp(-velocities[i]))
             particles[i] = (particles[i] > 0.5).astype(int)
 
@@ -111,9 +99,8 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
-    end_time = time.time()  # End runtime
+    end_time = time.time()
     runtime = round(end_time - start_time, 2)
-
     best_meal = data[gbest.astype(bool)]
 
     # =========================
@@ -123,7 +110,7 @@ if run:
     st.markdown("## ✅ Optimisation Results")
 
     total_calories = int(best_meal['Calories'].sum())
-    total_cost = round(best_meal['Price'].sum(), 2)
+    total_cost = round(best_meal['Price_RM'].sum(), 2)
     total_protein = round(best_meal['Protein'].sum(), 1)
 
     c1, c2, c3 = st.columns(3)
@@ -132,17 +119,16 @@ if run:
     c3.metric("Total Protein (g)", total_protein)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
-    st.dataframe(best_meal, use_container_width=True)
+    st.dataframe(best_meal[['Meal', 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'Calories', 'Protein', 'Price_RM']], use_container_width=True)
 
     # =========================
     # Convergence Curve
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
+        "Iteration": range(1, len(convergence)+1),
         "Best Fitness Value": convergence
     })
-
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
@@ -154,16 +140,4 @@ if run:
     )
     st.altair_chart(chart, use_container_width=True)
 
-    # =========================
-    # Runtime & Summary
-    # =========================
-    st.markdown(f"""
-**Runtime:** {runtime} seconds  
-
-**Summary:**  
-- PSO completed **{len(convergence)} iterations**.  
-- Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
-- Total cost is **RM {total_cost}**, showing realistic relationship between calorie intake and cost.  
-- Protein intake is **{total_protein} g**, supporting nutritional balance.  
-- The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
-""")
+    st.markdown(f"**Runtime:** {runtime} seconds")
