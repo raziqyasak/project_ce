@@ -32,18 +32,17 @@ data = data[['Calories', 'Protein']].copy()
 
 # -------------------------
 # LOGICAL COST MODEL
-# Cost proportional to calories
 # -------------------------
 np.random.seed(42)
 data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
+
+NUM_MEALS = len(data)  # total meals in dataset
 
 # =========================
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-
-TARGET_CALORIES = st.sidebar.slider("Target Calories", 5000, 2000)
-MEALS_PER_DAY = st.sidebar.slider("Meals per Day", 2, 5, 3)
+TARGET_CALORIES = st.sidebar.slider("Target Calories", 1500, 3000, 2000)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
@@ -55,14 +54,12 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    indices = np.clip(particle.astype(int), 0, len(data) - 1)
-    selected = data.iloc[indices]
-
+    selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
     total_cost = selected['Cost'].sum()
     total_protein = selected['Protein'].sum()
 
-    # Penalty for being under/over calorie target or low protein
+    # Penalty for under/over calorie target or low protein
     penalty = 0
     if total_calories < TARGET_CALORIES:
         penalty += (TARGET_CALORIES - total_calories) * 10
@@ -83,10 +80,9 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    particles = np.random.randint(
-        0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
-    ).astype(float)
-    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
+    # Binary representation for particles
+    particles = np.random.randint(0, 2, (NUM_PARTICLES, NUM_MEALS))
+    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
@@ -101,8 +97,9 @@ if run:
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-            particles[i] += velocities[i]
-            particles[i] = np.clip(particles[i], 0, len(data) - 1)
+            # Update particle with sigmoid to map to binary
+            particles[i] = 1 / (1 + np.exp(-velocities[i]))  # sigmoid
+            particles[i] = (particles[i] > 0.5).astype(int)
 
             fitness = fitness_function(particles[i])
             if fitness < pbest_fitness[i]:
@@ -112,7 +109,7 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
-    best_meal = data.iloc[gbest.astype(int)]
+    best_meal = data[gbest.astype(bool)]
 
     # =========================
     # Results
