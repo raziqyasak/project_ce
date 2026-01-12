@@ -21,7 +21,7 @@ st.markdown("""
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects a daily meal plan that satisfies calorie requirements
-while minimising total cost.
+while minimising total price (RM).
 """)
 st.divider()
 
@@ -29,9 +29,16 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-data = data[['Food', 'Calories', 'Protein', 'Cost']].copy()
+data = data[['Calories', 'Protein']].copy()  # Ambil kolum sedia ada
 
-NUM_MEALS = len(data)
+# -------------------------
+# LOGICAL PRICE MODEL
+# Price proportional to calories
+# -------------------------
+np.random.seed(42)
+data['Price_RM'] = data['Calories'] * np.random.uniform(0.008, 0.015)
+
+NUM_MEALS = len(data)  # total meals in dataset
 
 # =========================
 # Sidebar Parameters
@@ -42,8 +49,8 @@ NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
 W = st.sidebar.slider("Inertia (W)", 0.1, 1.0, 0.7)
-C1 = st.sidebar.slider("Cognitive (C1)", 0.5, 2.5, 1.5)
-C2 = st.sidebar.slider("Social (C2)", 0.5, 2.5, 1.5)
+C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
+C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
 # Fitness Function
@@ -55,7 +62,7 @@ def fitness_function(particle):
 
     selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
-    total_cost = selected['Cost'].sum()
+    total_price = selected['Price_RM'].sum()
     total_protein = selected['Protein'].sum()
 
     # Penalti untuk kurang/lebih kalori atau protein rendah
@@ -67,7 +74,7 @@ def fitness_function(particle):
     if total_protein < 50:
         penalty += (50 - total_protein) * 20
 
-    return total_cost + penalty
+    return total_price + penalty
 
 # =========================
 # Run Button
@@ -79,7 +86,7 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    start_time = time.time()  # START timer
+    start_time = time.time()  # untuk kira runtime
 
     # Binary PSO: 0 = not selected, 1 = selected
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
@@ -90,11 +97,7 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-
-    for iter_num in range(MAX_ITER):
-        status_text.text(f"Iteration {iter_num+1} / {MAX_ITER}")
+    for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
             velocities[i] = (
@@ -113,7 +116,9 @@ if run:
 
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
-        progress_bar.progress((iter_num+1)/MAX_ITER)
+
+    end_time = time.time()
+    runtime = round(end_time - start_time, 2)  # dalam saat
 
     best_meal = data[gbest.astype(bool)]
 
@@ -124,13 +129,14 @@ if run:
     st.markdown("## ✅ Optimisation Results")
 
     total_calories = int(best_meal['Calories'].sum())
-    total_cost = round(best_meal['Cost'].sum(), 2)
+    total_price = round(best_meal['Price_RM'].sum(), 2)
     total_protein = round(best_meal['Protein'].sum(), 1)
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Calories (kcal)", total_calories)
-    c2.metric("Total Cost (RM)", total_cost)
+    c2.metric("Total Price (RM)", total_price)
     c3.metric("Total Protein (g)", total_protein)
+    c4.metric("Runtime (s)", runtime)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
@@ -140,9 +146,10 @@ if run:
     # =========================
     st.markdown("## 📈 PSO Convergence Curve")
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence)+1),
+        "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
     })
+
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
@@ -152,11 +159,5 @@ if run:
         )
         .properties(height=350)
     )
-    st.altair_chart(chart, use_container_width=True)
 
-    # =========================
-    # Runtime
-    # =========================
-    end_time = time.time()
-    runtime = round(end_time - start_time, 2)
-    st.markdown(f"**Total Runtime:** {runtime} seconds")
+    st.altair_chart(chart, use_container_width=True)
