@@ -23,7 +23,7 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-# Pastikan dataset ada kolum: Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
+# Dataset harus ada kolum: Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
 NUM_MEALS = len(data)
 
 # =========================
@@ -42,9 +42,8 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    # pastikan sekurang-kurangnya 1 hidangan dipilih
     if particle.sum() == 0:
-        particle[random.randint(0, len(particle)-1)] = 1
+        particle[random.randint(0, len(particle)-1)] = 1  # pastikan ada hidangan dipilih
 
     selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
@@ -72,7 +71,6 @@ run = st.button("Start PSO Optimisation")
 # =========================
 if run:
     start_time = time.time()
-    # Binary PSO
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
@@ -102,7 +100,10 @@ if run:
 
     end_time = time.time()
     runtime = round(end_time - start_time, 2)
-    best_meal = data[gbest.astype(bool)]
+
+    # Ambil baris-barisan yang dipilih dari dataset
+    selected_indices = np.where(gbest == 1)[0]
+    selected_data = data.iloc[selected_indices]
 
     # =========================
     # Results
@@ -110,9 +111,9 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    total_calories = int(best_meal['Calories'].sum())
-    total_cost = round(best_meal['Price_RM'].sum(), 2)
-    total_protein = round(best_meal['Protein'].sum(), 1)
+    total_calories = int(selected_data['Calories'].sum())
+    total_cost = round(selected_data['Price_RM'].sum(), 2)
+    total_protein = round(selected_data['Protein'].sum(), 1)
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Calories (kcal)", total_calories)
@@ -120,7 +121,7 @@ if run:
     c3.metric("Total Protein (g)", total_protein)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
-    st.dataframe(best_meal[['Breakfast','Lunch','Dinner','Snack','Calories','Protein','Price_RM']], use_container_width=True)
+    st.dataframe(selected_data[['Breakfast','Lunch','Dinner','Snack','Calories','Protein','Price_RM']], use_container_width=True)
 
     # =========================
     # Convergence Curve
