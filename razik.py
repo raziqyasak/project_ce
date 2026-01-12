@@ -131,7 +131,7 @@ if run:
     c2.metric("Total Cost (RM)", total_cost)
     c3.metric("Total Protein (g)", total_protein)
 
-    st.markdown("### 🥗 Selected Daily Meal Plan")
+    st.markdown("###  Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
     # =========================
