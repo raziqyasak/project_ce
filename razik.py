@@ -155,14 +155,3 @@ if run:
 
     st.altair_chart(chart, use_container_width=True)
 
-    # =========================
-    # Summary
-    # =========================
-    st.markdown(f"""
-**Summary:**  
-- PSO completed **{len(convergence)} iterations**.  
-- Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
-- Total cost is **RM {total_cost}**, showing realistic relationship between calorie intake and cost.  
-- Protein intake is **{total_protein} g**, supporting nutritional balance.  
-- The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
-""")
