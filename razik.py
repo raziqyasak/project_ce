@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import random
 import altair as alt
+import time
 
 # =========================
 # Page Configuration
@@ -19,8 +20,8 @@ st.markdown("""
 # 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
-This system selects a daily meal plan that satisfies calorie requirements
-while minimising total cost (Price in RM).
+This system selects **one daily diet plan** that achieves calories
+closest to the target while minimising total cost (RM).
 """)
 st.divider()
 
@@ -28,61 +29,58 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-data = data[['Food','Calories','Protein']].copy()
 
-# =========================
-# Assign logical Price_RM based on calories
-# =========================
-def assign_price(calories):
-    if calories <= 200:
-        return np.random.uniform(2, 5)   # Snek / minuman
-    elif calories <= 500:
-        return np.random.uniform(5, 10)  # Sarapan / ringan
-    elif calories <= 800:
-        return np.random.uniform(10, 15) # Makan tengahari / malam sederhana
-    else:
-        return np.random.uniform(12, 20) # Hidangan berat
+# Pastikan column yang digunakan wujud
+# Ubah sini ikut dataset awak
+if 'Food' not in data.columns:
+    data['Food'] = [f"Meal {i+1}" for i in range(len(data))]
 
-np.random.seed(42)
-data['Price_RM'] = data['Calories'].apply(assign_price)
+if 'Calories' not in data.columns:
+    data['Calories'] = np.random.randint(100, 800, size=len(data))
 
-NUM_MEALS = len(data)
+if 'Protein' not in data.columns:
+    data['Protein'] = np.random.randint(5, 50, size=len(data))
+
+if 'Price_RM' not in data.columns:
+    data['Price_RM'] = np.random.uniform(5, 20, size=len(data)).round(2)
 
 # =========================
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
+
+TARGET_CALORIES = st.sidebar.slider(
+    "Target Calories (kcal)", 1500, 3000, 1900
+)
+
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
-W = st.sidebar.slider("Inertia (W)", 0.1, 1.0, 0.7)
+W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
 C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
+# Random Meal Price Generator
+# =========================
+def generate_meal_prices(total_price):
+    ratios = np.random.dirichlet([1, 1, 1, 1])
+    prices = ratios * total_price
+    return {
+        "Breakfast": round(prices[0], 2),
+        "Lunch": round(prices[1], 2),
+        "Dinner": round(prices[2], 2),
+        "Snack": round(prices[3], 2)
+    }
+
+# =========================
 # Fitness Function
 # =========================
-def fitness_function(particle):
-    # Pastikan sekurang-kurangnya 1 hidangan dipilih
-    if particle.sum() == 0:
-        particle[random.randint(0, len(particle)-1)] = 1
-
-    selected = data[particle.astype(bool)]
-    total_calories = selected['Calories'].sum()
-    total_price = selected['Price_RM'].sum()
-    total_protein = selected['Protein'].sum()
-
-    # Penalti untuk kurang/lebih kalori atau protein rendah
-    penalty = 0
-    if total_calories < TARGET_CALORIES:
-        penalty += (TARGET_CALORIES - total_calories) * 10
-    if total_calories > TARGET_CALORIES * 1.1:
-        penalty += (total_calories - TARGET_CALORIES) * 5
-    if total_protein < 50:
-        penalty += (50 - total_protein) * 20
-
-    return total_price + penalty
+def fitness_function(index):
+    row = data.iloc[int(index)]
+    calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
+    price = row['Price_RM']
+    return calorie_diff * 0.7 + price * 0.3
 
 # =========================
 # Run Button
@@ -94,13 +92,15 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    # Binary PSO: 0 = not selected, 1 = selected
-    particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
-    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
+    start_time = time.time()
+
+    particles = np.random.randint(0, len(data), NUM_PARTICLES).astype(float)
+    velocities = np.random.uniform(-1, 1, NUM_PARTICLES)
 
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
     gbest = pbest[np.argmin(pbest_fitness)]
+
     convergence = []
 
     for _ in range(MAX_ITER):
@@ -111,19 +111,21 @@ if run:
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-            # Update particle dengan sigmoid → binary
-            particles[i] = 1 / (1 + np.exp(-velocities[i]))
-            particles[i] = (particles[i] > 0.5).astype(int)
+            particles[i] += velocities[i]
+            particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
             fitness = fitness_function(particles[i])
             if fitness < pbest_fitness[i]:
-                pbest[i] = particles[i].copy()
+                pbest[i] = particles[i]
                 pbest_fitness[i] = fitness
 
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
-    selected_data = data[gbest.astype(bool)]
+    runtime = round(time.time() - start_time, 3)
+
+    best_plan = data.iloc[int(gbest)]
+    meal_prices = generate_meal_prices(best_plan['Price_RM'])
 
     # =========================
     # Results
@@ -131,17 +133,24 @@ if run:
     st.divider()
     st.markdown("## ✅ Optimisation Results")
 
-    total_calories = int(selected_data['Calories'].sum())
-    total_price = round(selected_data['Price_RM'].sum(), 2)
-    total_protein = round(selected_data['Protein'].sum(), 1)
-
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Calories (kcal)", total_calories)
-    c2.metric("Total Price (RM)", total_price)
-    c3.metric("Total Protein (g)", total_protein)
+    c1.metric("Calories (kcal)", int(best_plan['Calories']))
+    c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
+    c3.metric("Protein (g)", best_plan['Protein'])
 
-    st.markdown("### 🥗 Selected Daily Meal Plan")
-    st.dataframe(selected_data[['Food','Calories','Protein','Price_RM']], use_container_width=True)
+    st.markdown("### 🍳 Daily Meal Prices (Random Distribution)")
+
+    meal_df = pd.DataFrame({
+        "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
+        "Price (RM)": [
+            meal_prices["Breakfast"],
+            meal_prices["Lunch"],
+            meal_prices["Dinner"],
+            meal_prices["Snack"]
+        ]
+    })
+
+    st.dataframe(meal_df, use_container_width=True)
 
     # =========================
     # Convergence Curve
@@ -156,10 +165,22 @@ if run:
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
         .encode(
-            x=alt.X("Iteration", title="Iteration"),
-            y=alt.Y("Best Fitness Value", title="Fitness Value")
+            x="Iteration",
+            y="Best Fitness Value"
         )
         .properties(height=350)
     )
 
     st.altair_chart(chart, use_container_width=True)
+
+    # =========================
+    # Summary
+    # =========================
+    st.markdown(f"""
+### 📝 Summary
+- Target Calories: **{TARGET_CALORIES} kcal**
+- Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
+- Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
+- PSO Runtime: **{runtime} seconds**
+- Meal prices are randomly distributed while maintaining total daily cost.
+""")
