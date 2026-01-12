@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import random
 import altair as alt
+import time
 
 # =========================
 # Page Configuration
@@ -16,7 +17,7 @@ st.set_page_config(
 # Header
 # =========================
 st.markdown("""
-#  Diet Meal Planning Optimisation  
+# 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects a daily meal plan that satisfies calorie requirements
@@ -28,28 +29,21 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-data = data[['Calories', 'Protein']].copy()
+data = data[['Food', 'Calories', 'Protein', 'Cost']].copy()
 
-# -------------------------
-# LOGICAL COST MODEL
-# Cost proportional to calories
-# -------------------------
-np.random.seed(42)
-data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
-
-NUM_MEALS = len(data)  # total meals in dataset
+NUM_MEALS = len(data)
 
 # =========================
 # Sidebar Parameters
 # =========================
-st.sidebar.header(" PSO Parameters")
+st.sidebar.header("⚙️ PSO Parameters")
 TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
-W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
-C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
-C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
+W = st.sidebar.slider("Inertia (W)", 0.1, 1.0, 0.7)
+C1 = st.sidebar.slider("Cognitive (C1)", 0.5, 2.5, 1.5)
+C2 = st.sidebar.slider("Social (C2)", 0.5, 2.5, 1.5)
 
 # =========================
 # Fitness Function
@@ -78,13 +72,15 @@ def fitness_function(particle):
 # =========================
 # Run Button
 # =========================
-st.markdown("### Run Optimisation")
+st.markdown("### 🚀 Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
 # PSO Execution
 # =========================
 if run:
+    start_time = time.time()  # START timer
+
     # Binary PSO: 0 = not selected, 1 = selected
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
@@ -94,7 +90,11 @@ if run:
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
-    for _ in range(MAX_ITER):
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+
+    for iter_num in range(MAX_ITER):
+        status_text.text(f"Iteration {iter_num+1} / {MAX_ITER}")
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
             velocities[i] = (
@@ -113,6 +113,7 @@ if run:
 
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
+        progress_bar.progress((iter_num+1)/MAX_ITER)
 
     best_meal = data[gbest.astype(bool)]
 
@@ -120,7 +121,7 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("##  Optimisation Results")
+    st.markdown("## ✅ Optimisation Results")
 
     total_calories = int(best_meal['Calories'].sum())
     total_cost = round(best_meal['Cost'].sum(), 2)
@@ -131,18 +132,17 @@ if run:
     c2.metric("Total Cost (RM)", total_cost)
     c3.metric("Total Protein (g)", total_protein)
 
-    st.markdown("###  Selected Daily Meal Plan")
+    st.markdown("### 🥗 Selected Daily Meal Plan")
     st.dataframe(best_meal, use_container_width=True)
 
     # =========================
     # Convergence Curve
     # =========================
-    st.markdown("## PSO Convergence Curve")
+    st.markdown("## 📈 PSO Convergence Curve")
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
+        "Iteration": range(1, len(convergence)+1),
         "Best Fitness Value": convergence
     })
-
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
@@ -152,5 +152,11 @@ if run:
         )
         .properties(height=350)
     )
-
     st.altair_chart(chart, use_container_width=True)
+
+    # =========================
+    # Runtime
+    # =========================
+    end_time = time.time()
+    runtime = round(end_time - start_time, 2)
+    st.markdown(f"**Total Runtime:** {runtime} seconds")
