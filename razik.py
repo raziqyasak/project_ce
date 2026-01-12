@@ -47,17 +47,29 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Random Meal Price Generator
+# Logical Meal Price Generator (NO CENTS)
 # =========================
 def generate_meal_prices(total_price):
-    ratios = np.random.dirichlet([1, 1, 1, 1])
-    prices = ratios * total_price
-    return {
-        "Breakfast": round(prices[0], 2),
-        "Lunch": round(prices[1], 2),
-        "Dinner": round(prices[2], 2),
-        "Snack": round(prices[3], 2)
+    total_price = int(round(total_price))
+
+    ratios = {
+        "Breakfast": 0.25,
+        "Lunch": 0.35,
+        "Dinner": 0.30,
+        "Snack": 0.10
     }
+
+    prices = {meal: int(total_price * ratio) for meal, ratio in ratios.items()}
+
+    # Ensure total equals total_price
+    difference = total_price - sum(prices.values())
+
+    # Allocate remaining RM to Lunch & Dinner
+    if difference > 0:
+        prices["Lunch"] += difference // 2
+        prices["Dinner"] += difference - (difference // 2)
+
+    return prices
 
 # =========================
 # Fitness Function
@@ -68,7 +80,7 @@ def fitness_function(index):
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
 
-    # Weighted fitness
+    # Weighted objective function
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -126,7 +138,7 @@ if run:
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Calories (kcal)", int(best_plan['Calories']))
-    c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
+    c2.metric("Total Price (RM)", int(round(best_plan['Price_RM'])))
     c3.metric("Protein (g)", best_plan['Protein'])
 
     st.markdown("### 🍳 Daily Meal Suggestions & Prices")
@@ -178,7 +190,7 @@ if run:
 ### 📝 Summary
 - Target Calories: **{TARGET_CALORIES} kcal**
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
-- Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
+- Total Daily Price: **RM {int(round(best_plan['Price_RM']))}**
 - PSO Runtime: **{runtime} seconds**
-- Meal prices are randomly distributed while maintaining total daily cost.
+- Meal prices are allocated logically with no decimal values.
 """)
