@@ -23,7 +23,7 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
-# Dataset harus ada kolum: Breakfast, Lunch, Dinner, Snack, Calories, Protein, Price_RM
+# Pastikan dataset ada kolum: Food, Calories, Protein, Price_RM
 NUM_MEALS = len(data)
 
 # =========================
@@ -43,7 +43,7 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # =========================
 def fitness_function(particle):
     if particle.sum() == 0:
-        particle[random.randint(0, len(particle)-1)] = 1  # pastikan ada hidangan dipilih
+        particle[random.randint(0, len(particle)-1)] = 1
 
     selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
@@ -101,7 +101,7 @@ if run:
     end_time = time.time()
     runtime = round(end_time - start_time, 2)
 
-    # Ambil baris-barisan yang dipilih dari dataset
+    # Pilih hidangan berdasarkan gbest
     selected_indices = np.where(gbest == 1)[0]
     selected_data = data.iloc[selected_indices]
 
@@ -121,7 +121,7 @@ if run:
     c3.metric("Total Protein (g)", total_protein)
 
     st.markdown("### 🥗 Selected Daily Meal Plan")
-    st.dataframe(selected_data[['Breakfast','Lunch','Dinner','Snack','Calories','Protein','Price_RM']], use_container_width=True)
+    st.dataframe(selected_data[['Food','Calories','Protein','Price_RM']], use_container_width=True)
 
     # =========================
     # Convergence Curve
