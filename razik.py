@@ -34,34 +34,34 @@ data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-
-TARGET_CALORIES = st.sidebar.slider(
-    "Target Calories (kcal)", 1500, 3000, 1900
-)
-
+TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
-
 W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
 C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Fixed Meal Price Generator
+# Meal Price Generator (≥ RM 2, total = Price_RM)
 # =========================
 def generate_meal_prices_fixed(total_price):
     min_price = 2
     n_meals = 4
+
     # pastikan total_price cukup untuk min_price semua meal
     if total_price < min_price * n_meals:
         total_price = min_price * n_meals
 
-    ratios = np.random.dirichlet([1]*n_meals)
-    prices = ratios * (total_price - min_price*n_meals)
-    prices = [p + min_price for p in prices]
+    remaining = total_price - min_price * n_meals
 
-    # betulkan supaya jumlah = total_price
-    prices[-1] += total_price - sum(prices)
+    # random pembahagian baki harga
+    ratios = np.random.dirichlet([1]*n_meals)
+    prices = [min_price + r*remaining for r in ratios]
+
+    # betulkan supaya jumlah tepat sama
+    diff = total_price - sum(prices)
+    prices[-1] += diff
+
     prices = [round(p, 2) for p in prices]
 
     return {
@@ -78,7 +78,6 @@ def fitness_function(index):
     row = data.iloc[int(index)]
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
     price = row['Price_RM']
-    # weighted fitness
     return calorie_diff * 0.7 + price * 0.3
 
 # =========================
@@ -122,6 +121,7 @@ if run:
         convergence.append(min(pbest_fitness))
 
     runtime = round(time.time() - start_time, 3)
+
     best_plan = data.iloc[int(gbest)]
     meal_prices = generate_meal_prices_fixed(best_plan['Price_RM'])
 
@@ -136,10 +136,16 @@ if run:
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
 
-    st.markdown("### 🍳 Daily Meal Prices (≥ RM 2 each)")
+    st.markdown("### 🍳 Daily Meal Suggestions & Prices")
 
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
+        "Suggestion": [
+            best_plan.get('Breakfast Suggestion', '-'),
+            best_plan.get('Lunch Suggestion', '-'),
+            best_plan.get('Dinner Suggestion', '-'),
+            best_plan.get('Snack Suggestion', '-')
+        ],
         "Price (RM)": [
             meal_prices["Breakfast"],
             meal_prices["Lunch"],
@@ -158,7 +164,6 @@ if run:
         "Iteration": range(1, len(convergence)+1),
         "Best Fitness Value": convergence
     })
-
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
@@ -168,7 +173,6 @@ if run:
         )
         .properties(height=350)
     )
-
     st.altair_chart(chart, use_container_width=True)
 
     # =========================
@@ -178,7 +182,7 @@ if run:
 ### 📝 Summary
 - Target Calories: **{TARGET_CALORIES} kcal**
 - Selected Plan Calories: **{int(best_plan['Calories'])} kcal**
-- Total Daily Price: **RM {round(best_plan['Price_RM'],2)}**
+- Total Daily Price: **RM {round(best_plan['Price_RM'], 2)}**
 - PSO Runtime: **{runtime} seconds**
-- Each meal has **≥ RM 2** and total price matches dataset.
+- Meal prices are randomly distributed but each ≥ RM 2, total matches Price_RM.
 """)
