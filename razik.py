@@ -29,14 +29,28 @@ st.divider()
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price_LOGICAL.csv")
 
-# PASTIKAN kolum ini wujud
-data = data[['Food', 'Calories', 'Protein']].copy()
+# Auto-detect menu/food column
+possible_food_cols = ['Food', 'Menu', 'Item', 'Dish', 'Name']
+food_col = None
+for col in possible_food_cols:
+    if col in data.columns:
+        food_col = col
+        break
+
+if food_col is None:
+    st.error("Dataset does not contain a food/menu column.")
+    st.stop()
+
+# Keep required columns only
+data = data[[food_col, 'Calories', 'Protein']].copy()
+data.rename(columns={food_col: 'Food'}, inplace=True)
 
 # =========================
-# LOGICAL COST MODEL
+# Logical Cost Model
 # =========================
 np.random.seed(42)
-data['Cost'] = (data['Calories'] * np.random.uniform(0.008, 0.015)).round(2)
+data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015, size=len(data))
+data['Cost'] = data['Cost'].round(2)
 
 NUM_MEALS = len(data)
 
@@ -45,11 +59,19 @@ NUM_MEALS = len(data)
 # =========================
 st.sidebar.header("PSO Parameters")
 
-TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
-NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
-MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
+TARGET_CALORIES = st.sidebar.slider(
+    "Target Calories (kcal)", 1500, 3000, 1900
+)
 
-W = st.sidebar.slider("Inertia (W)", 0.1, 1.0, 0.7)
+NUM_PARTICLES = st.sidebar.slider(
+    "Number of Particles", 10, 50, 30
+)
+
+MAX_ITER = st.sidebar.slider(
+    "Iterations", 50, 300, 100
+)
+
+W = st.sidebar.slider("Inertia Weight (W)", 0.1, 1.0, 0.7)
 C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
@@ -57,8 +79,9 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
+    # Ensure at least one food is selected
     if particle.sum() == 0:
-        particle[random.randint(0, len(particle)-1)] = 1
+        particle[random.randint(0, len(particle) - 1)] = 1
 
     selected = data[particle.astype(bool)]
 
@@ -67,10 +90,13 @@ def fitness_function(particle):
     total_protein = selected['Protein'].sum()
 
     penalty = 0
+
     if total_calories < TARGET_CALORIES:
         penalty += (TARGET_CALORIES - total_calories) * 10
+
     if total_calories > TARGET_CALORIES * 1.1:
         penalty += (total_calories - TARGET_CALORIES) * 5
+
     if total_protein < 50:
         penalty += (50 - total_protein) * 20
 
@@ -79,7 +105,7 @@ def fitness_function(particle):
 # =========================
 # Run Button
 # =========================
-st.markdown("###  Run Optimisation")
+st.markdown("### Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
@@ -105,8 +131,9 @@ if run:
                 + C2 * r2 * (gbest - particles[i])
             )
 
-            particles[i] = 1 / (1 + np.exp(-velocities[i]))
-            particles[i] = (particles[i] > 0.5).astype(int)
+            # Sigmoid for binary PSO
+            sigmoid = 1 / (1 + np.exp(-velocities[i]))
+            particles[i] = (sigmoid > 0.5).astype(int)
 
             fitness = fitness_function(particles[i])
             if fitness < pbest_fitness[i]:
@@ -122,14 +149,18 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("##  Optimisation Results")
+    st.markdown("## Optimisation Results")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Calories (kcal)", int(best_meal['Calories'].sum()))
-    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
-    c3.metric("Total Protein (g)", round(best_meal['Protein'].sum(), 1))
+    total_calories = int(best_meal['Calories'].sum())
+    total_cost = round(best_meal['Cost'].sum(), 2)
+    total_protein = round(best_meal['Protein'].sum(), 1)
 
-    st.markdown("###  Selected Menu From Dataset")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Calories (kcal)", total_calories)
+    col2.metric("Total Cost (RM)", total_cost)
+    col3.metric("Total Protein (g)", total_protein)
+
+    st.markdown("### Selected Daily Meal Plan")
     st.dataframe(
         best_meal[['Food', 'Calories', 'Protein', 'Cost']],
         use_container_width=True
@@ -149,8 +180,8 @@ if run:
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
         .encode(
-            x="Iteration",
-            y="Best Fitness Value"
+            x=alt.X("Iteration", title="Iteration"),
+            y=alt.Y("Best Fitness Value", title="Fitness Value")
         )
         .properties(height=350)
     )
