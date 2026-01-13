@@ -27,7 +27,7 @@ st.divider()
 # =========================
 # Load Dataset
 # =========================
-data = pd.read_csv("Food_and_Nutrition_with_Price_LOGICAL.csv")
+data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 
 # Auto-detect menu/food column
 possible_food_cols = ['Food', 'Menu', 'Item', 'Dish', 'Name']
