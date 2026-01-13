@@ -28,21 +28,23 @@ st.divider()
 # Load Dataset
 # =========================
 data = pd.read_csv("Food_and_Nutrition_with_Price_LOGICAL.csv")
-data = data[['Calories', 'Protein']].copy()
 
-# -------------------------
+# PASTIKAN kolum ini wujud
+data = data[['Food', 'Calories', 'Protein']].copy()
+
+# =========================
 # LOGICAL COST MODEL
-# Cost proportional to calories
-# -------------------------
+# =========================
 np.random.seed(42)
-data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
+data['Cost'] = (data['Calories'] * np.random.uniform(0.008, 0.015)).round(2)
 
-NUM_MEALS = len(data)  # total meals in dataset
+NUM_MEALS = len(data)
 
 # =========================
 # Sidebar Parameters
 # =========================
-st.sidebar.header(" PSO Parameters")
+st.sidebar.header("PSO Parameters")
+
 TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
@@ -55,16 +57,15 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    # pastikan sekurang-kurangnya 1 hidangan dipilih
     if particle.sum() == 0:
         particle[random.randint(0, len(particle)-1)] = 1
 
     selected = data[particle.astype(bool)]
+
     total_calories = selected['Calories'].sum()
     total_cost = selected['Cost'].sum()
     total_protein = selected['Protein'].sum()
 
-    # Penalti untuk kurang/lebih kalori atau protein rendah
     penalty = 0
     if total_calories < TARGET_CALORIES:
         penalty += (TARGET_CALORIES - total_calories) * 10
@@ -78,31 +79,32 @@ def fitness_function(particle):
 # =========================
 # Run Button
 # =========================
-st.markdown("### Run Optimisation")
+st.markdown("###  Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
 # PSO Execution
 # =========================
 if run:
-    # Binary PSO: 0 = not selected, 1 = selected
     particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
     velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
     gbest = pbest[np.argmin(pbest_fitness)]
+
     convergence = []
 
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
+
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-            # Update particle dengan sigmoid → binary
+
             particles[i] = 1 / (1 + np.exp(-velocities[i]))
             particles[i] = (particles[i] > 0.5).astype(int)
 
@@ -120,24 +122,24 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("## Optimisation Results")
-
-    total_calories = int(best_meal['Calories'].sum())
-    total_cost = round(best_meal['Cost'].sum(), 2)
-    total_protein = round(best_meal['Protein'].sum(), 1)
+    st.markdown("##  Optimisation Results")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Calories (kcal)", total_calories)
-    c2.metric("Total Cost (RM)", total_cost)
-    c3.metric("Total Protein (g)", total_protein)
+    c1.metric("Total Calories (kcal)", int(best_meal['Calories'].sum()))
+    c2.metric("Total Cost (RM)", round(best_meal['Cost'].sum(), 2))
+    c3.metric("Total Protein (g)", round(best_meal['Protein'].sum(), 1))
 
-    st.markdown("### Selected Daily Meal Plan")
-    st.dataframe(best_meal, use_container_width=True)
+    st.markdown("###  Selected Menu From Dataset")
+    st.dataframe(
+        best_meal[['Food', 'Calories', 'Protein', 'Cost']],
+        use_container_width=True
+    )
 
     # =========================
     # Convergence Curve
     # =========================
     st.markdown("## PSO Convergence Curve")
+
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
@@ -147,8 +149,8 @@ if run:
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
         .encode(
-            x=alt.X("Iteration", title="Iteration"),
-            y=alt.Y("Best Fitness Value", title="Fitness Value")
+            x="Iteration",
+            y="Best Fitness Value"
         )
         .properties(height=350)
     )
