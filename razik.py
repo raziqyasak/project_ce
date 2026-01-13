@@ -91,6 +91,10 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
+    # Set random seed for reproducibility
+    random.seed(42)
+    np.random.seed(42)
+
     start_time = time.time()
 
     # Initialize particles and velocities
