@@ -17,7 +17,7 @@ st.set_page_config(
 # Header
 # =========================
 st.markdown("""
-#  Diet Meal Planning Optimisation  
+# 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects **one daily diet plan** that achieves calories
@@ -33,7 +33,7 @@ data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
 # =========================
 # Sidebar Parameters
 # =========================
-st.sidebar.header(" PSO Parameters")
+st.sidebar.header("PSO Parameters")
 TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
@@ -58,11 +58,10 @@ def generate_meal_prices(total_price):
     prices = {}
     for meal, ratio in ratios.items():
         raw_price = total_price * ratio
-        # Bundarkan ke 0.0 atau 0.5
         rounded_price = round(raw_price * 2) / 2
-        prices[meal] = max(1.0, rounded_price)  # minimum RM1
+        prices[meal] = max(1.0, rounded_price)
 
-    # Betulkan lebihan supaya total tepat
+    # Adjust to match total price exactly
     diff = round(total_price - sum(prices.values()), 2)
     for meal in ["Lunch", "Dinner"]:
         if diff == 0:
@@ -85,7 +84,7 @@ def fitness_function(index):
 # =========================
 # Run Button
 # =========================
-st.markdown("###  Run Optimisation")
+st.markdown("### Run Optimisation")
 run = st.button("Start PSO Optimisation")
 
 # =========================
@@ -94,14 +93,19 @@ run = st.button("Start PSO Optimisation")
 if run:
     start_time = time.time()
 
+    # Initialize particles and velocities
     particles = np.random.randint(0, len(data), NUM_PARTICLES).astype(float)
     velocities = np.random.uniform(-1, 1, NUM_PARTICLES)
 
+    # Personal best
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
+
+    # Global best
     gbest = pbest[np.argmin(pbest_fitness)]
     convergence = []
 
+    # PSO main loop
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
@@ -129,13 +133,14 @@ if run:
     # Results
     # =========================
     st.divider()
-    st.markdown("##  Optimisation Results")
-    c1, c2, c3 = st.columns(3)
+    st.markdown("## Optimisation Results")
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Calories (kcal)", int(best_plan['Calories']))
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
+    c4.metric("Best Fitness Value", round(min(pbest_fitness), 3))  # Display Best Fitness
 
-    st.markdown("###  Daily Meal Suggestions & Prices")
+    st.markdown("### Daily Meal Suggestions & Prices")
     meal_df = pd.DataFrame({
         "Meal": ["Breakfast", "Lunch", "Dinner", "Snack"],
         "Suggestion": [
@@ -156,7 +161,7 @@ if run:
     # =========================
     # Convergence Curve
     # =========================
-    st.markdown("##  PSO Convergence Curve")
+    st.markdown("## PSO Convergence Curve")
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence) + 1),
         "Best Fitness Value": convergence
@@ -168,3 +173,5 @@ if run:
         .properties(height=350)
     )
     st.altair_chart(chart, use_container_width=True)
+
+    st.markdown(f"**Optimisation completed in {runtime} seconds.**")
