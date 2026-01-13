@@ -37,13 +37,13 @@ data = data[['Calories', 'Protein']].copy()
 np.random.seed(42)
 data['Cost'] = data['Calories'] * np.random.uniform(0.008, 0.015)
 
+NUM_MEALS = len(data)  # total meals in dataset
+
 # =========================
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-
-TARGET_CALORIES = st.sidebar.slider("Target Calories", 5000, 2000)
-MEALS_PER_DAY = st.sidebar.slider("Meals per Day", 2, 5, 3)
+TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
@@ -55,14 +55,16 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    indices = np.clip(particle.astype(int), 0, len(data) - 1)
-    selected = data.iloc[indices]
+    # pastikan sekurang-kurangnya 1 hidangan dipilih
+    if particle.sum() == 0:
+        particle[random.randint(0, len(particle)-1)] = 1
 
+    selected = data[particle.astype(bool)]
     total_calories = selected['Calories'].sum()
     total_cost = selected['Cost'].sum()
     total_protein = selected['Protein'].sum()
 
-    # Penalty for being under/over calorie target or low protein
+    # Penalti untuk kurang/lebih kalori atau protein rendah
     penalty = 0
     if total_calories < TARGET_CALORIES:
         penalty += (TARGET_CALORIES - total_calories) * 10
@@ -83,10 +85,9 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    particles = np.random.randint(
-        0, len(data), (NUM_PARTICLES, MEALS_PER_DAY)
-    ).astype(float)
-    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, MEALS_PER_DAY))
+    # Binary PSO: 0 = not selected, 1 = selected
+    particles = (np.random.rand(NUM_PARTICLES, NUM_MEALS) < 0.3).astype(int)
+    velocities = np.random.uniform(-1, 1, (NUM_PARTICLES, NUM_MEALS))
 
     pbest = particles.copy()
     pbest_fitness = np.array([fitness_function(p) for p in particles])
@@ -101,8 +102,9 @@ if run:
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
-            particles[i] += velocities[i]
-            particles[i] = np.clip(particles[i], 0, len(data) - 1)
+            # Update particle dengan sigmoid → binary
+            particles[i] = 1 / (1 + np.exp(-velocities[i]))
+            particles[i] = (particles[i] > 0.5).astype(int)
 
             fitness = fitness_function(particles[i])
             if fitness < pbest_fitness[i]:
@@ -112,7 +114,7 @@ if run:
         gbest = pbest[np.argmin(pbest_fitness)]
         convergence.append(min(pbest_fitness))
 
-    best_meal = data.iloc[gbest.astype(int)]
+    best_meal = data[gbest.astype(bool)]
 
     # =========================
     # Results
@@ -160,7 +162,7 @@ if run:
 **Summary:**  
 - PSO completed **{len(convergence)} iterations**.  
 - Final meal plan achieves **{total_calories} kcal**, close to the target of **{TARGET_CALORIES} kcal**.  
-- Total cost is **RM {total_cost}**, showing a realistic relationship between calorie intake and cost.  
+- Total cost is **RM {total_cost}**, showing realistic relationship between calorie intake and cost.  
 - Protein intake is **{total_protein} g**, supporting nutritional balance.  
 - The convergence curve shows gradual improvement, indicating stable optimisation behaviour.
 """)
