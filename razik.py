@@ -43,7 +43,7 @@ NUM_MEALS = len(data)  # total meals in dataset
 # Sidebar Parameters
 # =========================
 st.sidebar.header("⚙️ PSO Parameters")
-TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 3000, 1900)
+TARGET_CALORIES = st.sidebar.slider("Target Calories (kcal)", 1500, 5000, 1900)
 NUM_PARTICLES = st.sidebar.slider("Number of Particles", 10, 50, 30)
 MAX_ITER = st.sidebar.slider("Iterations", 50, 300, 100)
 
