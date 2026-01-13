@@ -55,6 +55,19 @@ data['Cost'] = data['Cost'].round(2)
 NUM_MEALS = len(data)
 
 # =========================
+# Display Available Menu
+# =========================
+st.markdown("## Available Food Menu")
+
+st.dataframe(
+    data[['Food', 'Calories', 'Protein', 'Cost']],
+    use_container_width=True,
+    height=400
+)
+
+st.divider()
+
+# =========================
 # Sidebar Parameters
 # =========================
 st.sidebar.header("PSO Parameters")
@@ -79,7 +92,6 @@ C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 # Fitness Function
 # =========================
 def fitness_function(particle):
-    # Ensure at least one food is selected
     if particle.sum() == 0:
         particle[random.randint(0, len(particle) - 1)] = 1
 
@@ -131,7 +143,6 @@ if run:
                 + C2 * r2 * (gbest - particles[i])
             )
 
-            # Sigmoid for binary PSO
             sigmoid = 1 / (1 + np.exp(-velocities[i]))
             particles[i] = (sigmoid > 0.5).astype(int)
 
