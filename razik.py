@@ -25,20 +25,36 @@ while minimising total cost.
 st.divider()
 
 # =========================
-# Load Dataset
+# Upload Dataset
 # =========================
-data = pd.read_csv("Food_and_Nutrition_with_Price.csv")
+st.markdown("## Upload Food Dataset")
 
-# Auto-detect menu/food column
+uploaded_file = st.file_uploader(
+    "Upload Food and Nutrition CSV file",
+    type=["csv"]
+)
+
+if uploaded_file is None:
+    st.warning("Please upload the dataset to continue.")
+    st.stop()
+
+data = pd.read_csv(uploaded_file)
+
+# =========================
+# Detect Food Column
+# =========================
 possible_food_cols = ['Food', 'Menu', 'Item', 'Dish', 'Name']
 food_col = None
+
 for col in possible_food_cols:
     if col in data.columns:
         food_col = col
         break
 
-if food_col is None:
-    st.error("Dataset does not contain a food/menu column.")
+required_cols = [food_col, 'Calories', 'Protein']
+
+if food_col is None or not all(col in data.columns for col in required_cols):
+    st.error("Dataset must contain Food/Menu, Calories, and Protein columns.")
     st.stop()
 
 # Keep required columns only
@@ -144,57 +160,3 @@ if run:
             )
 
             sigmoid = 1 / (1 + np.exp(-velocities[i]))
-            particles[i] = (sigmoid > 0.5).astype(int)
-
-            fitness = fitness_function(particles[i])
-            if fitness < pbest_fitness[i]:
-                pbest[i] = particles[i].copy()
-                pbest_fitness[i] = fitness
-
-        gbest = pbest[np.argmin(pbest_fitness)]
-        convergence.append(min(pbest_fitness))
-
-    best_meal = data[gbest.astype(bool)]
-
-    # =========================
-    # Results
-    # =========================
-    st.divider()
-    st.markdown("## Optimisation Results")
-
-    total_calories = int(best_meal['Calories'].sum())
-    total_cost = round(best_meal['Cost'].sum(), 2)
-    total_protein = round(best_meal['Protein'].sum(), 1)
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Calories (kcal)", total_calories)
-    col2.metric("Total Cost (RM)", total_cost)
-    col3.metric("Total Protein (g)", total_protein)
-
-    st.markdown("### Selected Daily Meal Plan")
-    st.dataframe(
-        best_meal[['Food', 'Calories', 'Protein', 'Cost']],
-        use_container_width=True
-    )
-
-    # =========================
-    # Convergence Curve
-    # =========================
-    st.markdown("## PSO Convergence Curve")
-
-    convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
-        "Best Fitness Value": convergence
-    })
-
-    chart = (
-        alt.Chart(convergence_df)
-        .mark_line(strokeWidth=3)
-        .encode(
-            x=alt.X("Iteration", title="Iteration"),
-            y=alt.Y("Best Fitness Value", title="Fitness Value")
-        )
-        .properties(height=350)
-    )
-
-    st.altair_chart(chart, use_container_width=True)
