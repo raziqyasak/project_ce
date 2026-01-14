@@ -6,7 +6,7 @@ import altair as alt
 import time
 
 # =========================
-# Page Configuration 
+# Page Configuration
 # =========================
 st.set_page_config(
     page_title="Diet Meal Planning Optimisation (PSO)",
@@ -17,11 +17,11 @@ st.set_page_config(
 # Header
 # =========================
 st.markdown("""
-#  Diet Meal Planning Optimisation  
+# 🍽️ Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects **one daily diet plan** that achieves calories
-closest to the target while minimising total cost (RM).
+closest to the target while **minimising total cost (RM)**.
 """)
 st.divider()
 
@@ -42,12 +42,11 @@ C1 = st.sidebar.slider("Cognitive Parameter (C1)", 0.5, 2.5, 1.5)
 C2 = st.sidebar.slider("Social Parameter (C2)", 0.5, 2.5, 1.5)
 
 # =========================
-# Realistic Meal Price Generator
+# Meal Price Splitter
 # =========================
 def generate_meal_prices(total_price):
     total_price = round(float(total_price), 2)
 
-    # Ratio harga logik per meal
     ratios = {
         "Breakfast": 0.25,
         "Lunch": 0.35,
@@ -61,7 +60,6 @@ def generate_meal_prices(total_price):
         rounded_price = round(raw_price * 2) / 2
         prices[meal] = max(1.0, rounded_price)
 
-    # Adjust to match total price exactly
     diff = round(total_price - sum(prices.values()), 2)
     for meal in ["Lunch", "Dinner"]:
         if diff == 0:
@@ -73,13 +71,17 @@ def generate_meal_prices(total_price):
     return prices
 
 # =========================
-# Fitness Function
+# Objective Function (Cost-based)
 # =========================
-def fitness_function(index):
+def objective_function(index):
     row = data.iloc[int(index)]
     calorie_diff = abs(row['Calories'] - TARGET_CALORIES)
-    price = row['Price_RM']
-    return calorie_diff * 0.7 + price * 0.3
+
+    # Penalty for calorie deviation
+    penalty = calorie_diff * 0.5
+
+    total_cost = row['Price_RM'] + penalty
+    return total_cost
 
 # =========================
 # Run Button
@@ -91,43 +93,48 @@ run = st.button("Start PSO Optimisation")
 # PSO Execution
 # =========================
 if run:
-    # Set random seed for reproducibility
     random.seed(42)
     np.random.seed(42)
 
     start_time = time.time()
 
-    # Initialize particles and velocities
+    # Initialize particles
     particles = np.random.randint(0, len(data), NUM_PARTICLES).astype(float)
     velocities = np.random.uniform(-1, 1, NUM_PARTICLES)
 
     # Personal best
     pbest = particles.copy()
-    pbest_fitness = np.array([fitness_function(p) for p in particles])
+    pbest_cost = np.array([objective_function(p) for p in particles])
 
     # Global best
-    gbest = pbest[np.argmin(pbest_fitness)]
-    convergence = []
+    gbest = pbest[np.argmin(pbest_cost)]
 
-    # PSO main loop
+    convergence_cost = []
+
+    # PSO Loop
     for _ in range(MAX_ITER):
         for i in range(NUM_PARTICLES):
             r1, r2 = random.random(), random.random()
+
             velocities[i] = (
                 W * velocities[i]
                 + C1 * r1 * (pbest[i] - particles[i])
                 + C2 * r2 * (gbest - particles[i])
             )
+
             particles[i] += velocities[i]
             particles[i] = np.clip(particles[i], 0, len(data) - 1)
 
-            fitness = fitness_function(particles[i])
-            if fitness < pbest_fitness[i]:
+            cost = objective_function(particles[i])
+            if cost < pbest_cost[i]:
                 pbest[i] = particles[i]
-                pbest_fitness[i] = fitness
+                pbest_cost[i] = cost
 
-        gbest = pbest[np.argmin(pbest_fitness)]
-        convergence.append(min(pbest_fitness))
+        gbest = pbest[np.argmin(pbest_cost)]
+
+        # Track TOTAL COST ONLY
+        best_row = data.iloc[int(gbest)]
+        convergence_cost.append(best_row['Price_RM'])
 
     runtime = round(time.time() - start_time, 3)
     best_plan = data.iloc[int(gbest)]
@@ -138,11 +145,12 @@ if run:
     # =========================
     st.divider()
     st.markdown("## Optimisation Results")
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Calories (kcal)", int(best_plan['Calories']))
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
-    c4.metric("Best Fitness Value", round(min(pbest_fitness), 3))  # Display Best Fitness
+    c4.metric("Runtime (s)", runtime)
 
     st.markdown("### Daily Meal Suggestions & Prices")
     meal_df = pd.DataFrame({
@@ -163,17 +171,21 @@ if run:
     st.dataframe(meal_df, use_container_width=True)
 
     # =========================
-    # Convergence Curve
+    # Convergence Curve (TOTAL COST)
     # =========================
-    st.markdown("## PSO Convergence Curve")
+    st.markdown("## PSO Convergence Curve (Total Cost)")
     convergence_df = pd.DataFrame({
-        "Iteration": range(1, len(convergence) + 1),
-        "Best Fitness Value": convergence
+        "Iteration": range(1, len(convergence_cost) + 1),
+        "Total Cost (RM)": convergence_cost
     })
+
     chart = (
         alt.Chart(convergence_df)
         .mark_line(strokeWidth=3)
-        .encode(x="Iteration", y="Best Fitness Value")
+        .encode(
+            x="Iteration",
+            y="Total Cost (RM)"
+        )
         .properties(height=350)
     )
     st.altair_chart(chart, use_container_width=True)
