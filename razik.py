@@ -150,7 +150,7 @@ if run:
     c1.metric("Calories (kcal)", int(best_plan['Calories']))
     c2.metric("Total Price (RM)", round(best_plan['Price_RM'], 2))
     c3.metric("Protein (g)", best_plan['Protein'])
-    c4.metric("Runtime (s)", runtime)
+    
 
     st.markdown("### Daily Meal Suggestions & Prices")
     meal_df = pd.DataFrame({
