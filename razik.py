@@ -173,7 +173,7 @@ if run:
     # =========================
     # Convergence Curve (TOTAL COST)
     # =========================
-    st.markdown("## PSO Convergence Curve (Total Cost)")
+    st.markdown("## PSO Convergence Curve")
     convergence_df = pd.DataFrame({
         "Iteration": range(1, len(convergence_cost) + 1),
         "Total Cost (RM)": convergence_cost
