@@ -17,7 +17,7 @@ st.set_page_config(
 # Header
 # =========================
 st.markdown("""
-# 🍽️ Diet Meal Planning Optimisation  
+#  Diet Meal Planning Optimisation  
 ### Using Particle Swarm Optimisation (PSO)
 
 This system selects **one daily diet plan** that achieves calories
