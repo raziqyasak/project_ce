@@ -6,7 +6,7 @@ import altair as alt
 import time
 
 # =========================
-# Page Configuration
+# Page Configuration 
 # =========================
 st.set_page_config(
     page_title="Diet Meal Planning Optimisation (PSO)",
